@@ -1,0 +1,36 @@
+zuul:
+  ignoredPatterns: /trace/**, /trace
+  routes:
+    web: /*
+    web_all: /**
+    all: /
+  debug:
+    request: true
+server:
+  port: 9999
+debug: true
+logging.level.org.springframework.web: DEBUG
+logging.level.at.ac.wu.web.crawlers.thesis: DEBUG
+
+management:
+  port: 8081
+
+endpoints:
+  trace:
+    enabled: true
+    enable: true
+    sensitive: false
+
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+
+abc:
+  domain: deafult
+  delay: 200
+
+domains:
+    - domain: derStandard.at/**
+      delay: 1000
+    - domain: sport.orf.at/**
+      delay: 5000

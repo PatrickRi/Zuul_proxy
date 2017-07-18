@@ -1,0 +1,5 @@
+domains:
+    - name: derStandard.at
+      delay: 1000
+    - name: sport.orf.at
+      delay: 5000
