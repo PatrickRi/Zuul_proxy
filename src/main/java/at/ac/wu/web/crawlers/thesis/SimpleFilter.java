@@ -1,5 +1,6 @@
 package at.ac.wu.web.crawlers.thesis;
 
+import at.ac.wu.web.crawlers.thesis.cache.CacheHandler;
 import at.ac.wu.web.crawlers.thesis.http.HttpUtils;
 import at.ac.wu.web.crawlers.thesis.politeness.PolitenessCache;
 import at.ac.wu.web.crawlers.thesis.politeness.robotstxt.RobotstxtServer;
@@ -53,6 +54,9 @@ public class SimpleFilter extends ZuulFilter {
     @Autowired
     RobotstxtServer robotsTxt;
 
+    @Autowired
+    CacheHandler cacheHandler;
+
     @EventListener
     public void onPropertyChange(EnvironmentChangeEvent event) {
         boolean createNewClient = false;
@@ -94,6 +98,9 @@ public class SimpleFilter extends ZuulFilter {
         HttpServletRequest request = context.getRequest();
         try {
             URL targetURL = new URL(request.getRequestURL().toString());
+            if(cacheHandler.getContent(request) != null) {
+                System.out.println("HELLO");
+            }
             if (!robotsTxt.allows(targetURL)) {
                 log.debug(request.getRequestURL().toString() + " blocked because of robots.txt");
                 String html = html(

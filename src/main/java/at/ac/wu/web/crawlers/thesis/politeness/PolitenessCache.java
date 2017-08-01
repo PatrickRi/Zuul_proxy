@@ -3,6 +3,8 @@ package at.ac.wu.web.crawlers.thesis.politeness;
 import org.infinispan.Cache;
 import org.infinispan.configuration.cache.Configuration;
 import org.infinispan.configuration.cache.ConfigurationBuilder;
+import org.infinispan.configuration.global.GlobalConfiguration;
+import org.infinispan.configuration.global.GlobalConfigurationBuilder;
 import org.infinispan.eviction.EvictionType;
 import org.infinispan.manager.DefaultCacheManager;
 import org.slf4j.Logger;
@@ -30,7 +32,12 @@ public class PolitenessCache {
                 .memory().size(20_000L).evictionType(EvictionType.MEMORY)
                 .expiration().lifespan(100L, TimeUnit.SECONDS)
                 .build();
-        cache = new DefaultCacheManager(configuration).getCache("politeness-cache");
+        GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
+                .globalJmxStatistics()
+                .cacheManagerName("PolitenessCacheManager")
+                .jmxDomain("politenessCache")
+                .build();
+        cache = new DefaultCacheManager(globalConfiguration, configuration).getCache("politeness-cache");
     }
 
     @Autowired
@@ -38,13 +45,13 @@ public class PolitenessCache {
         this.config = config;
     }
 
-    public PolitenessCache getCache()  {
+    public PolitenessCache getCache() {
         return this;
     }
 
-    public void add(String domain)  {
+    public void add(String domain) {
         PolitenessEntry politenessEntry = this.config.getConfig(domain);
-        if(politenessEntry != null)  {
+        if (politenessEntry != null) {
             log.debug("Domain " + domain + " added to cache with lifespan of " + politenessEntry.getDelay());
             cache.put(domain + System.currentTimeMillis(), "", politenessEntry.getDelay(), TimeUnit.MILLISECONDS);
         } else {
@@ -53,12 +60,12 @@ public class PolitenessCache {
         }
     }
 
-    public boolean isAllowed(String domain)  {
+    public boolean isAllowed(String domain) {
         return cache.entrySet().stream().noneMatch(e -> e.getKey().startsWith(domain));
     }
 
-    public int getDelayForDomain(final String domain)  {
-        if(this.config.getConfig(domain) == null)  {
+    public int getDelayForDomain(final String domain) {
+        if (this.config.getConfig(domain) == null) {
             return this.config.getDefaultDelay();
         } else {
             return this.config.getConfig(domain).getDelay();
