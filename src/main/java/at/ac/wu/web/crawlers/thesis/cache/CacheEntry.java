@@ -1,7 +1,8 @@
 package at.ac.wu.web.crawlers.thesis.cache;
 
+import org.apache.http.Header;
+
 import java.io.Serializable;
-import java.net.URL;
 import java.time.LocalDateTime;
 
 /**
@@ -9,14 +10,15 @@ import java.time.LocalDateTime;
  */
 public class CacheEntry implements Serializable {
     private byte[] data;
-    private URL url;
+    private String url;
     private long maxAge;
     private boolean noCache;
     private boolean noStore;
     private LocalDateTime expires; //Response header controlling lifespan of page
     private LocalDateTime time; //Time at which page was loaded
+    private Header[] headers;
 
-    public CacheEntry(byte[] data, URL url, long maxAge, boolean noCache, boolean noStore, LocalDateTime expires, LocalDateTime time) {
+    public CacheEntry(byte[] data, String url, long maxAge, boolean noCache, boolean noStore, LocalDateTime expires, LocalDateTime time, Header[] headers) {
         this.data = data;
         this.url = url;
         this.maxAge = maxAge;
@@ -24,6 +26,7 @@ public class CacheEntry implements Serializable {
         this.noStore = noStore;
         this.expires = expires;
         this.time = time;
+        this.headers = headers;
     }
 
     public CacheEntry() {
@@ -39,11 +42,11 @@ public class CacheEntry implements Serializable {
         return this;
     }
 
-    public URL getUrl() {
+    public String getUrl() {
         return url;
     }
 
-    public CacheEntry setUrl(URL url) {
+    public CacheEntry setUrl(String url) {
         this.url = url;
         return this;
     }
@@ -90,6 +93,15 @@ public class CacheEntry implements Serializable {
 
     public CacheEntry setTime(LocalDateTime time) {
         this.time = time;
+        return this;
+    }
+
+    public Header[] getHeaders() {
+        return headers;
+    }
+
+    public CacheEntry setHeaders(Header[] headers) {
+        this.headers = headers;
         return this;
     }
 }

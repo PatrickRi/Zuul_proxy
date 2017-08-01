@@ -1,5 +1,6 @@
 package at.ac.wu.web.crawlers.thesis;
 
+import at.ac.wu.web.crawlers.thesis.cache.CacheEntry;
 import at.ac.wu.web.crawlers.thesis.cache.CacheHandler;
 import at.ac.wu.web.crawlers.thesis.http.HttpUtils;
 import at.ac.wu.web.crawlers.thesis.politeness.PolitenessCache;
@@ -14,6 +15,8 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +33,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -96,10 +100,22 @@ public class SimpleFilter extends ZuulFilter {
     public Object run() {
         RequestContext context = RequestContext.getCurrentContext();
         HttpServletRequest request = context.getRequest();
+        URL targetURL = null;
         try {
-            URL targetURL = new URL(request.getRequestURL().toString());
-            if(cacheHandler.getContent(request) != null) {
-                System.out.println("HELLO");
+            targetURL = new URL(request.getRequestURL().toString());
+
+            //Do not call yourself! Answer with 200 OK
+            String localAddress = InetAddress.getLocalHost().getHostAddress();
+            String requestAddress = InetAddress.getByName(targetURL.getHost()).getHostAddress();
+            if(localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress.equalsIgnoreCase("localhost"))  {
+                return null;
+            }
+            CacheEntry cachedContent = cacheHandler.getContent(request);
+            if(cachedContent != null) {
+                this.helper.setResponse(200,
+                        new ByteArrayInputStream(cachedContent.getData()),
+                        revertHeaders(cachedContent.getHeaders()));
+                return null;
             }
             if (!robotsTxt.allows(targetURL)) {
                 log.debug(request.getRequestURL().toString() + " blocked because of robots.txt");
@@ -144,13 +160,12 @@ public class SimpleFilter extends ZuulFilter {
             context.setChunkedRequestBody();
         }
 
-        String uri = this.helper.buildZuulRequestURI(request);
         this.helper.addIgnoredHeaders();
 
         try {
             CloseableHttpResponse response = forward(httpUtils.getHttpClient(), verb, request.getRequestURL().toString(), request,
                     headers, params, requestEntity);
-            setResponse(response);
+            setResponse(response, targetURL);
         } catch (Exception ex) {
             throw new ZuulRuntimeException(ex);
         }
@@ -193,7 +208,7 @@ public class SimpleFilter extends ZuulFilter {
     }
 
     private MultiValueMap<String, String> revertHeaders(Header[] headers) {
-        MultiValueMap<String, String> map = new LinkedMultiValueMap<String, String>();
+        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         for (Header header : headers) {
             String name = header.getName();
             if (!map.containsKey(name)) {
@@ -219,10 +234,17 @@ public class SimpleFilter extends ZuulFilter {
         return requestEntity;
     }
 
-    private void setResponse(HttpResponse response) throws IOException {
+    private void setResponse(HttpResponse response, URL url) throws IOException {
         RequestContext.getCurrentContext().set("zuulResponse", response);
+
+        InputStream content = response.getEntity().getContent();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        IOUtils.copy(content, baos);
+        byte[] bytes = baos.toByteArray();
+        this.cacheHandler.put(url, response.getAllHeaders(), bytes);
+
         this.helper.setResponse(response.getStatusLine().getStatusCode(),
-                response.getEntity() == null ? null : response.getEntity().getContent(),
+                response.getEntity() == null ? null : new ByteArrayInputStream(bytes),
                 revertHeaders(response.getAllHeaders()));
     }
 

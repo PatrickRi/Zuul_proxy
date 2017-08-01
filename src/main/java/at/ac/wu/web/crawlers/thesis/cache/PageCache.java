@@ -1,6 +1,9 @@
 package at.ac.wu.web.crawlers.thesis.cache;
 
 import at.ac.wu.web.crawlers.thesis.politeness.PolitenessConfiguration;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.infinispan.Cache;
 import org.infinispan.configuration.cache.Configuration;
 import org.infinispan.configuration.cache.ConfigurationBuilder;
@@ -12,9 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.net.URL;
-import java.util.concurrent.TimeUnit;
-
 /**
  * Created by Patrick on 11.07.2017.
  */
@@ -23,15 +23,14 @@ import java.util.concurrent.TimeUnit;
 public class PageCache {
 
     private static Logger log = LoggerFactory.getLogger(PageCache.class);
-    static Cache<URL, CacheEntry> cache;
+    static Cache<String, byte[]> cache;
     private static PageCache INSTANCE;
     private PolitenessConfiguration config;
 
     static {
 
         Configuration configuration = new ConfigurationBuilder()
-                .memory().size(20_000L).evictionType(EvictionType.MEMORY)
-                .expiration().lifespan(100L, TimeUnit.SECONDS)
+                .memory().size(200_000L).evictionType(EvictionType.MEMORY)
                 .build();
         GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
                 .globalJmxStatistics()
@@ -46,11 +45,25 @@ public class PageCache {
     }
 
 
-    public void addPage() {
+    public void addPage(String url, CacheEntry entry) {
+        try {
+            byte[] bytes = new ObjectMapper().registerModule(new Jdk8Module()).registerModule(new JavaTimeModule()).writeValueAsBytes(entry);
+            cache.put(url, bytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
     }
 
-    public CacheEntry getEntry(URL url) {
-        return cache.get(url);
+    public CacheEntry getEntry(String url) {
+        byte[] bytes = cache.get(url);
+        try {
+            if(bytes != null)  {
+                return new ObjectMapper().registerModule(new Jdk8Module()).registerModule(new JavaTimeModule()).readValue(bytes, CacheEntry.class);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

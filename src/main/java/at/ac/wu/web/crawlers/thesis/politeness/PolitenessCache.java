@@ -30,7 +30,7 @@ public class PolitenessCache {
 
         Configuration configuration = new ConfigurationBuilder()
                 .memory().size(20_000L).evictionType(EvictionType.MEMORY)
-                .expiration().lifespan(100L, TimeUnit.SECONDS)
+                .expiration().lifespan(1L, TimeUnit.HOURS)
                 .build();
         GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
                 .globalJmxStatistics()
