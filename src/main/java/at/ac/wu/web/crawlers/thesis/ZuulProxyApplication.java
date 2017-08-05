@@ -60,41 +60,9 @@ public class ZuulProxyApplication {
         return new SendErrorFilter();
     }
 
-//    @Bean
-//    public SendResponseFilter responseFilter() {
-//        return new SendResponseFilter();
-//    }
-
     @Bean
     public PreDecorationFilter decorationFilter(RouteLocator routeLocator) {
         return new PreDecorationFilter(routeLocator, this.server.getServlet().getServletPrefix(), this.zuulProperties, new ProxyRequestHelper());
     }
 
-//    @Bean
-//    public EmbeddedServletContainerFactory servletContainer() {
-//        TomcatEmbeddedServletContainerFactory tomcat = new TomcatEmbeddedServletContainerFactory() {
-//            @Override
-//            protected void postProcessContext(Context context) {
-//                SecurityConstraint securityConstraint = new SecurityConstraint();
-//                securityConstraint.setUserConstraint("CONFIDENTIAL");
-//                SecurityCollection collection = new SecurityCollection();
-//                collection.addPattern("/*");
-//                securityConstraint.addCollection(collection);
-//                context.addConstraint(securityConstraint);
-//            }
-//        };
-//
-//        tomcat.addAdditionalTomcatConnectors(initiateHttpConnector());
-//        return tomcat;
-//    }
-//
-//    private Connector initiateHttpConnector() {
-//        Connector connector = new Connector("org.apache.coyote.http11.Http11NioProtocol");
-//        connector.setScheme("http");
-//        connector.setPort(8080);
-//        connector.setSecure(false);
-//        connector.setRedirectPort(8443);
-//
-//        return connector;
-//    }
 }
