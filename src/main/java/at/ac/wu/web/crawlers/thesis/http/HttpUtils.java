@@ -51,9 +51,9 @@ import static org.springframework.cloud.netflix.zuul.filters.support.FilterConst
 @Configuration
 public class HttpUtils {
 
-    private PoolingHttpClientConnectionManager connectionManager;
     private final Timer connectionManagerTimer = new Timer(
             "HttpUtils.connectionManagerTimer", true);
+    private PoolingHttpClientConnectionManager connectionManager;
     private CloseableHttpClient httpClient;
 
     @PostConstruct
@@ -124,14 +124,8 @@ public class HttpUtils {
             RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder
                     .<ConnectionSocketFactory>create()
                     .register(HTTP_SCHEME, PlainConnectionSocketFactory.INSTANCE);
-//            if (this.sslHostnameValidationEnabled) { //default true
             registryBuilder.register(HTTPS_SCHEME,
                     new SSLConnectionSocketFactory(sslContext));
-//            }
-//            else {
-//                registryBuilder.register(HTTPS_SCHEME, new SSLConnectionSocketFactory(
-//                        sslContext, NoopHostnameVerifier.INSTANCE));
-//            }
             final Registry<ConnectionSocketFactory> registry = registryBuilder.build();
 
             this.connectionManager = new PoolingHttpClientConnectionManager(registry, null, null, null,
@@ -154,11 +148,10 @@ public class HttpUtils {
         return httpClient;
     }
 
-    public void refreshClient()  {
+    public void refreshClient() {
         try {
             httpClient.close();
-        }
-        catch (IOException ex) {
+        } catch (IOException ex) {
         }
         this.httpClient = newClient();
     }
@@ -170,8 +163,8 @@ public class HttpUtils {
     }
 
     public HttpRequest buildHttpRequest(String verb, String uri,
-                                           InputStreamEntity entity, MultiValueMap<String, String> headers,
-                                           MultiValueMap<String, String> params, HttpServletRequest request) {
+                                        InputStreamEntity entity, MultiValueMap<String, String> headers,
+                                        MultiValueMap<String, String> params, HttpServletRequest request) {
         HttpRequest httpRequest;
         String uriWithQueryString = uri + /*(this.forceOriginalQueryStringEncoding
                 ?*/ getEncodedQueryString(request)/* : this.helper.getQueryString(params))*/;
@@ -217,7 +210,7 @@ public class HttpUtils {
     }
 
     private String getEncodedQueryString(HttpServletRequest request) {
-        if(request == null)  {
+        if (request == null) {
             return "";
         }
         String query = request.getQueryString();

@@ -21,10 +21,9 @@ import java.util.concurrent.TimeUnit;
 @org.springframework.context.annotation.Configuration
 public class PolitenessCache {
 
-    private static Logger log = LoggerFactory.getLogger(PolitenessCache.class);
     static Cache<String, String> cache;
+    private static Logger log = LoggerFactory.getLogger(PolitenessCache.class);
     private static PolitenessCache INSTANCE;
-    private PolitenessConfiguration config;
 
     static {
 
@@ -34,11 +33,15 @@ public class PolitenessCache {
                 .build();
         GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
                 .globalJmxStatistics()
+                .enable()
                 .cacheManagerName("PolitenessCacheManager")
                 .jmxDomain("politenessCache")
+                .allowDuplicateDomains(true)
                 .build();
         cache = new DefaultCacheManager(globalConfiguration, configuration).getCache("politeness-cache");
     }
+
+    private PolitenessConfiguration config;
 
     @Autowired
     public void setConfig(PolitenessConfiguration config) {

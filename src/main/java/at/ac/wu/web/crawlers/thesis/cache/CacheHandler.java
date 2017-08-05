@@ -1,6 +1,7 @@
 package at.ac.wu.web.crawlers.thesis.cache;
 
 import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +13,9 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Enumeration;
+import java.util.HashMap;
+
+import static org.apache.http.HttpHeaders.*;
 
 /**
  * Created by Patrick on 01.08.2017.
@@ -25,9 +29,20 @@ public class CacheHandler {
     PageCache cache;
 
     public CacheEntry getContent(HttpServletRequest request) {
+        CacheEntry entry;
         try {
             URL url = new URL(request.getRequestURL().toString());
-            CacheEntry entry = cache.getEntry(url.toString());
+            String header = request.getHeader(HttpHeaders.CONTENT_TYPE);
+            if (header == null || header.isEmpty()) {
+                entry = cache.getEntry(new CacheKey(url.toString()));
+                if (entry == null) {
+                    entry = cache.getEntry(new CacheKey(url.toString(), "*/*"));
+                }
+            } else {
+                //Whitespaces can be contained inside Content-Type Header
+                entry = cache.getEntry(new CacheKey(url.toString(), header.replaceAll("\\s", "")));
+            }
+
             if (entry != null && checkCacheControl(request, entry)) {
                 return entry;
             }
@@ -38,36 +53,85 @@ public class CacheHandler {
         return null;
     }
 
-    public void put(URL url, Header[] headers, byte[] content) {
+    public void put(URL url, Header[] headers, byte[] content, HttpServletRequest request) {
         if (headers != null && content != null && content.length > 1) {
-            LocalDateTime expires = null;
-            boolean noCache = false;
-            boolean noStore = false;
-            long maxAge = -1;
-            for (Header header : headers) {
-                String name = header.getName();
-                if (name.equalsIgnoreCase("expires")) {
-                    try {
-                        expires = LocalDateTime.parse(header.getValue());
-                    } catch (Exception ex)  {
-                        expires = LocalDateTime.now(Clock.systemUTC());
-                    }
+            CacheEntry cacheEntry = createCacheEntry(url, headers, content);
+
+            String contentTypeRequested = request.getHeader(HttpHeaders.CONTENT_TYPE);
+            //If a specific content-type was requested
+            if (contentTypeRequested != null && !contentTypeRequested.isEmpty()) {
+                //Put with Content-Type of response
+                cache.addPage(new CacheKey(url.toString(), contentTypeRequested), cacheEntry);
+                //If there is no wildcard entry, put one into the cache
+                CacheKey wildcardKey = new CacheKey(url.toString(), "*/*");
+                if (!cache.exists(wildcardKey)) {
+                    cache.addPage(wildcardKey, cacheEntry);
                 }
-                if (name.equalsIgnoreCase("cache-control")) {
-                    String[] cacheDirectives = header.getValue().split(",");
-                    for (String directive : cacheDirectives) {
-                        if (directive.trim().equalsIgnoreCase("no-cache")) {
-                            noCache = true;
-                        } else if (directive.trim().equalsIgnoreCase("no-store")) {
-                            noStore = true;
-                        } else if (directive.trim().startsWith("max-age")) {
-                            maxAge = extractHeaderValue(directive);
-                        }
+                //If there is no url entry, put one into the cache
+                CacheKey simpleKey = new CacheKey(url.toString());
+                if (!cache.exists(simpleKey)) {
+                    cache.addPage(simpleKey, cacheEntry);
+                }
+            } else {
+                //If no content-type was given than put in cache:
+                //1. Content-Type of response
+                //2. No Content-Type (default for requests without content-type)
+                //3. */* for wildcard content-type
+                //Existence check is not needed here because a request already cached does not get this far
+                //and wildcard and pure url entries are more relevant coming from requests without Content-Type
+                //because server Content-Type defaults may differ
+                cache.addPage(new CacheKey(url.toString(), cacheEntry.getContentType()), cacheEntry);
+                cache.addPage(new CacheKey(url.toString()), cacheEntry);
+                cache.addPage(new CacheKey(url.toString(), "*/*"), cacheEntry);
+            }
+        }
+    }
+
+    private CacheEntry createCacheEntry(URL url, Header[] headers, byte[] content) {
+        LocalDateTime expires = null;
+        boolean noCache = false;
+        boolean noStore = false;
+        long maxAge = -1;
+        String contentType = "*/*";
+        for (Header header : headers) {
+            String name = header.getName();
+            if (name.equalsIgnoreCase(EXPIRES)) {
+                try {
+                    expires = LocalDateTime.parse(header.getValue());
+                } catch (Exception ex) {
+                    expires = LocalDateTime.now(Clock.systemUTC());
+                }
+            }
+            if (name.equalsIgnoreCase(CACHE_CONTROL)) {
+                String[] cacheDirectives = header.getValue().split(",");
+                for (String directive : cacheDirectives) {
+                    if (directive.trim().equalsIgnoreCase("no-cache")) {
+                        noCache = true;
+                    } else if (directive.trim().equalsIgnoreCase("no-store")) {
+                        noStore = true;
+                    } else if (directive.trim().startsWith("max-age")) {
+                        maxAge = extractHeaderValue(directive);
                     }
                 }
             }
-            cache.addPage(url.toString(), new CacheEntry(content, url.toString(), maxAge, noCache, noStore, expires, LocalDateTime.now(Clock.systemUTC()), headers));
+            if (name.equalsIgnoreCase(CONTENT_TYPE)) {
+                //Whitespaces can be contained inside Content-Type Header
+                contentType = header.getValue().replaceAll("\\s", "");
+            }
         }
+        HashMap<String, String> map = new HashMap<>();
+        for (Header header : headers) {
+            String name = header.getName();
+            if (!map.containsKey(name)) {
+                map.put(name, header.getValue());
+            } else {
+                String value = map.get(name);
+                value = value + "---_ENTRY_---";
+                map.put(name, value);
+            }
+        }
+        return new CacheEntry(content, url.toString(),
+                maxAge, noCache, noStore, expires, LocalDateTime.now(Clock.systemUTC()), map, false, contentType);
     }
 
     private boolean checkCacheControl(HttpServletRequest request, CacheEntry entry) {
@@ -75,7 +139,7 @@ public class CacheHandler {
         if (headerNames != null) {
             while (headerNames.hasMoreElements()) {
                 String name = headerNames.nextElement();
-                if ("Cache-Control".equalsIgnoreCase(name)) {
+                if (CACHE_CONTROL.equalsIgnoreCase(name)) {
                     String cacheControl = request.getHeader(name);
                     String[] elements = cacheControl.split(",");
                     for (String element : elements) {
@@ -185,7 +249,7 @@ public class CacheHandler {
         return dateDiff(entry.getTime(), LocalDateTime.now(Clock.systemUTC()));
     }
 
-    //Unfortunalety there is no easier way to do it in Java 8
+    //Unfortunately there is no easier way to do it in Java 8
     private long dateDiff(LocalDateTime fromDateTime, LocalDateTime toDateTime) {
         LocalDateTime tempDateTime = LocalDateTime.from(fromDateTime);
 

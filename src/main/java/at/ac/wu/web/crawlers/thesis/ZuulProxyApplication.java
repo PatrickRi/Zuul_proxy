@@ -12,7 +12,6 @@ import org.springframework.cloud.netflix.zuul.filters.RouteLocator;
 import org.springframework.cloud.netflix.zuul.filters.TraceProxyRequestHelper;
 import org.springframework.cloud.netflix.zuul.filters.ZuulProperties;
 import org.springframework.cloud.netflix.zuul.filters.post.SendErrorFilter;
-import org.springframework.cloud.netflix.zuul.filters.post.SendResponseFilter;
 import org.springframework.cloud.netflix.zuul.filters.pre.DebugFilter;
 import org.springframework.cloud.netflix.zuul.filters.pre.PreDecorationFilter;
 import org.springframework.context.annotation.Bean;
@@ -23,18 +22,16 @@ import org.springframework.web.bind.annotation.RestController;
 @EnableZuulServer
 public class ZuulProxyApplication {
 
+    @Autowired
+    protected ZuulProperties zuulProperties;
+    @Autowired
+    protected ServerProperties server;
+    @Autowired(required = false)
+    private TraceRepository traces;
+
     public static void main(String[] args) {
         SpringApplication.run(ZuulProxyApplication.class, args);
     }
-
-    @Autowired
-    protected ZuulProperties zuulProperties;
-
-    @Autowired
-    protected ServerProperties server;
-
-    @Autowired(required = false)
-    private TraceRepository traces;
 
     @Bean
     public TraceProxyRequestHelper proxyRequestHelper() {
@@ -63,13 +60,41 @@ public class ZuulProxyApplication {
         return new SendErrorFilter();
     }
 
-    @Bean
-    public SendResponseFilter responseFilter() {
-        return new SendResponseFilter();
-    }
+//    @Bean
+//    public SendResponseFilter responseFilter() {
+//        return new SendResponseFilter();
+//    }
 
     @Bean
     public PreDecorationFilter decorationFilter(RouteLocator routeLocator) {
         return new PreDecorationFilter(routeLocator, this.server.getServlet().getServletPrefix(), this.zuulProperties, new ProxyRequestHelper());
     }
+
+//    @Bean
+//    public EmbeddedServletContainerFactory servletContainer() {
+//        TomcatEmbeddedServletContainerFactory tomcat = new TomcatEmbeddedServletContainerFactory() {
+//            @Override
+//            protected void postProcessContext(Context context) {
+//                SecurityConstraint securityConstraint = new SecurityConstraint();
+//                securityConstraint.setUserConstraint("CONFIDENTIAL");
+//                SecurityCollection collection = new SecurityCollection();
+//                collection.addPattern("/*");
+//                securityConstraint.addCollection(collection);
+//                context.addConstraint(securityConstraint);
+//            }
+//        };
+//
+//        tomcat.addAdditionalTomcatConnectors(initiateHttpConnector());
+//        return tomcat;
+//    }
+//
+//    private Connector initiateHttpConnector() {
+//        Connector connector = new Connector("org.apache.coyote.http11.Http11NioProtocol");
+//        connector.setScheme("http");
+//        connector.setPort(8080);
+//        connector.setSecure(false);
+//        connector.setRedirectPort(8443);
+//
+//        return connector;
+//    }
 }

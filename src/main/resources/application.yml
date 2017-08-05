@@ -6,11 +6,15 @@ zuul:
     all: /
   debug:
     request: true
-server:
-  port: 9999
+server.port: 9999
+#server.ssl.key-store: keystore.p12
+#server.ssl.key-store-password: password
+#server.ssl.keyStoreType: PKCS12
+#server.ssl.keyAlias: tomcat
 debug: true
 logging.level.org.springframework.web: DEBUG
 logging.level.at.ac.wu.web.crawlers.thesis: DEBUG
+logging.level.org.infinispan: TRACE
 
 management:
   port: 8081

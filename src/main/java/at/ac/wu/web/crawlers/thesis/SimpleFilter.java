@@ -7,6 +7,7 @@ import at.ac.wu.web.crawlers.thesis.politeness.PolitenessCache;
 import at.ac.wu.web.crawlers.thesis.politeness.robotstxt.RobotstxtServer;
 import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.context.RequestContext;
+import com.netflix.zuul.util.HTTPRequestUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -15,7 +16,6 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.tomcat.util.http.fileupload.ByteArrayOutputStream;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 import org.springframework.cloud.netflix.zuul.filters.ProxyRequestHelper;
 import org.springframework.cloud.netflix.zuul.filters.TraceProxyRequestHelper;
+import org.springframework.cloud.netflix.zuul.filters.support.FilterConstants;
 import org.springframework.cloud.netflix.zuul.util.ZuulRuntimeException;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpHeaders;
@@ -31,12 +32,15 @@ import org.springframework.util.MultiValueMap;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static j2html.TagCreator.*;
@@ -61,6 +65,10 @@ public class SimpleFilter extends ZuulFilter {
     @Autowired
     CacheHandler cacheHandler;
 
+    public SimpleFilter(TraceProxyRequestHelper helper) {
+        this.helper = helper;
+    }
+
     @EventListener
     public void onPropertyChange(EnvironmentChangeEvent event) {
         boolean createNewClient = false;
@@ -77,13 +85,9 @@ public class SimpleFilter extends ZuulFilter {
         }
     }
 
-    public SimpleFilter(TraceProxyRequestHelper helper) {
-        this.helper = helper;
-    }
-
     @Override
     public String filterType() {
-        return "route";
+        return FilterConstants.ROUTE_TYPE;
     }
 
     @Override
@@ -107,14 +111,27 @@ public class SimpleFilter extends ZuulFilter {
             //Do not call yourself! Answer with 200 OK
             String localAddress = InetAddress.getLocalHost().getHostAddress();
             String requestAddress = InetAddress.getByName(targetURL.getHost()).getHostAddress();
-            if(localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress.equalsIgnoreCase("localhost"))  {
+            if (localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress.equalsIgnoreCase("localhost")) {
                 return null;
             }
             CacheEntry cachedContent = cacheHandler.getContent(request);
-            if(cachedContent != null) {
+            if (cachedContent != null) {
+                MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+                HashMap<String, String> headers = cachedContent.getHeaders();
+                for (Map.Entry<String, String> entry : headers.entrySet()) {
+                    String[] elements = entry.getValue().split("---_ENTRY_---");
+                    for (String element : elements) {
+                        if (!map.containsKey(entry.getKey())) {
+                            map.put(entry.getKey(), new ArrayList<>());
+                        }
+                        map.get(entry.getKey()).add(element);
+                    }
+                }
+                InputStream responseContent = new ByteArrayInputStream(cachedContent.getData());
+
                 this.helper.setResponse(200,
-                        new ByteArrayInputStream(cachedContent.getData()),
-                        revertHeaders(cachedContent.getHeaders()));
+                        responseContent,
+                        map);
                 return null;
             }
             if (!robotsTxt.allows(targetURL)) {
@@ -143,7 +160,7 @@ public class SimpleFilter extends ZuulFilter {
                 ).render();
                 InputStream content = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
                 HttpHeaders headers = new HttpHeaders();
-                headers.set("Retry-After", ""+ delayForDomain);
+                headers.set("Retry-After", "" + delayForDomain);
                 this.helper.setResponse(429, content, headers);
                 return null;
             }
@@ -165,7 +182,7 @@ public class SimpleFilter extends ZuulFilter {
         try {
             CloseableHttpResponse response = forward(httpUtils.getHttpClient(), verb, request.getRequestURL().toString(), request,
                     headers, params, requestEntity);
-            setResponse(response, targetURL);
+            setResponse(response, targetURL, request);
         } catch (Exception ex) {
             throw new ZuulRuntimeException(ex);
         }
@@ -234,18 +251,35 @@ public class SimpleFilter extends ZuulFilter {
         return requestEntity;
     }
 
-    private void setResponse(HttpResponse response, URL url) throws IOException {
+    private void setResponse(HttpResponse response, URL url, HttpServletRequest request) throws IOException {
         RequestContext.getCurrentContext().set("zuulResponse", response);
 
         InputStream content = response.getEntity().getContent();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         IOUtils.copy(content, baos);
         byte[] bytes = baos.toByteArray();
-        this.cacheHandler.put(url, response.getAllHeaders(), bytes);
+        baos.close();
+        MultiValueMap<String, String> multiValueMap = revertHeaders(response.getAllHeaders());
+        InputStream responseContent = new ByteArrayInputStream(bytes);
+        boolean gZipped = isGzipped(multiValueMap);
+        this.cacheHandler.put(url, response.getAllHeaders(), bytes, request);
+
 
         this.helper.setResponse(response.getStatusLine().getStatusCode(),
-                response.getEntity() == null ? null : new ByteArrayInputStream(bytes),
-                revertHeaders(response.getAllHeaders()));
+                response.getEntity() == null ? null : responseContent,
+                multiValueMap);
+    }
+
+    private boolean isGzipped(MultiValueMap<String, String> httpHeaders) {
+        if (httpHeaders.containsKey(HttpHeaders.CONTENT_ENCODING)) {
+            List<String> collection = httpHeaders.get(HttpHeaders.CONTENT_ENCODING);
+            for (String header : collection) {
+                if (HTTPRequestUtils.getInstance().isGzipped(header)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 }

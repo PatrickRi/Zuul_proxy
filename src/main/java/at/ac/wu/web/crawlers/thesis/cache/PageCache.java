@@ -1,6 +1,5 @@
 package at.ac.wu.web.crawlers.thesis.cache;
 
-import at.ac.wu.web.crawlers.thesis.politeness.PolitenessConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -22,20 +21,44 @@ import org.springframework.stereotype.Component;
 @org.springframework.context.annotation.Configuration
 public class PageCache {
 
+    static Cache<CacheKey, byte[]> cache;
     private static Logger log = LoggerFactory.getLogger(PageCache.class);
-    static Cache<String, byte[]> cache;
     private static PageCache INSTANCE;
-    private PolitenessConfiguration config;
 
     static {
 
         Configuration configuration = new ConfigurationBuilder()
-                .memory().size(200_000L).evictionType(EvictionType.MEMORY)
+                .memory()
+                .size(200_000L)
+                .evictionType(EvictionType.MEMORY)
+                .storeAsBinary()
+                .enable()
                 .build();
+
+        new ConfigurationBuilder().persistence()
+                .passivation(false)
+                .addSingleFileStore()
+                .preload(true)
+                .shared(false)
+                .fetchPersistentState(true)
+                .ignoreModifications(false)
+                .purgeOnStartup(false)
+                .location(System.getProperty("java.io.tmpdir"))
+                .async()
+                .enabled(true)
+                .threadPoolSize(5)
+                .singleton()
+                .enabled(true)
+                .pushStateWhenCoordinator(true)
+                .pushStateTimeout(20000);
+
+
         GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
                 .globalJmxStatistics()
+                .enable()
                 .cacheManagerName("PageCacheManager")
                 .jmxDomain("pageCache")
+                .allowDuplicateDomains(true)
                 .build();
         cache = new DefaultCacheManager(globalConfiguration, configuration).getCache("page-cache");
     }
@@ -45,22 +68,34 @@ public class PageCache {
     }
 
 
-    public void addPage(String url, CacheEntry entry) {
+    public void addPage(CacheKey key, CacheEntry entry) {
         try {
-            byte[] bytes = new ObjectMapper().registerModule(new Jdk8Module()).registerModule(new JavaTimeModule()).writeValueAsBytes(entry);
-            cache.put(url, bytes);
+            byte[] bytes = mapper().writeValueAsBytes(entry);
+            cache.put(key, bytes);
+            log.debug(key + " added to cache " + entry);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
     }
 
-    public CacheEntry getEntry(String url) {
-        byte[] bytes = cache.get(url);
+    private ObjectMapper mapper() {
+        return new ObjectMapper().registerModule(new Jdk8Module()).registerModule(new JavaTimeModule());
+    }
+
+    public boolean exists(CacheKey key) {
+        return cache.containsKey(key);
+    }
+
+    public CacheEntry getEntry(CacheKey key) {
+        byte[] bytes = cache.get(key);
+        log.debug("Lookup " + key + " in cache");
         try {
-            if(bytes != null)  {
-                return new ObjectMapper().registerModule(new Jdk8Module()).registerModule(new JavaTimeModule()).readValue(bytes, CacheEntry.class);
+            if (bytes != null) {
+                log.debug("Entry for " + key + " found");
+                return mapper().readValue(bytes, CacheEntry.class);
             }
+            log.debug("Entry for " + key + " not found");
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -1,9 +1,8 @@
 package at.ac.wu.web.crawlers.thesis.cache;
 
-import org.apache.http.Header;
-
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 
 /**
  * Created by Patrick on 01.08.2017.
@@ -16,9 +15,10 @@ public class CacheEntry implements Serializable {
     private boolean noStore;
     private LocalDateTime expires; //Response header controlling lifespan of page
     private LocalDateTime time; //Time at which page was loaded
-    private Header[] headers;
+    private HashMap<String, String> headers;
+    private String contentType;
 
-    public CacheEntry(byte[] data, String url, long maxAge, boolean noCache, boolean noStore, LocalDateTime expires, LocalDateTime time, Header[] headers) {
+    public CacheEntry(byte[] data, String url, long maxAge, boolean noCache, boolean noStore, LocalDateTime expires, LocalDateTime time, HashMap<String, String> headers, boolean gZipped, String contentType) {
         this.data = data;
         this.url = url;
         this.maxAge = maxAge;
@@ -27,6 +27,7 @@ public class CacheEntry implements Serializable {
         this.expires = expires;
         this.time = time;
         this.headers = headers;
+        this.contentType = contentType;
     }
 
     public CacheEntry() {
@@ -96,12 +97,36 @@ public class CacheEntry implements Serializable {
         return this;
     }
 
-    public Header[] getHeaders() {
+    public HashMap<String, String> getHeaders() {
         return headers;
     }
 
-    public CacheEntry setHeaders(Header[] headers) {
+    public CacheEntry setHeaders(HashMap<String, String> headers) {
         this.headers = headers;
         return this;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public CacheEntry setContentType(String contentType) {
+        this.contentType = contentType;
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return "CacheEntry{" +
+                "data=" + data.length +
+                ", url='" + url + '\'' +
+                ", maxAge=" + maxAge +
+                ", noCache=" + noCache +
+                ", noStore=" + noStore +
+                ", expires=" + expires +
+                ", time=" + time +
+                ", headers=" + headers +
+                ", contentType='" + contentType + '\'' +
+                '}';
     }
 }
