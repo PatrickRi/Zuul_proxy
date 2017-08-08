@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Represents the infinispan cache holding the information
+ * which domains where crawled at which time.
+ *
  * Created by Patrick on 11.07.2017.
  */
 @Component
@@ -28,8 +31,13 @@ public class PolitenessCache {
     static {
 
         Configuration configuration = new ConfigurationBuilder()
-                .memory().size(20_000L).evictionType(EvictionType.MEMORY)
-                .expiration().lifespan(1L, TimeUnit.HOURS)
+                .memory()
+                .size(20_000L)
+                .evictionType(EvictionType.MEMORY)
+                .expiration()
+                .lifespan(1L, TimeUnit.HOURS)
+                .jmxStatistics()
+                .enable()
                 .build();
         GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
                 .globalJmxStatistics()
@@ -42,6 +50,33 @@ public class PolitenessCache {
     }
 
     private PolitenessConfiguration config;
+
+    private Cache<String, String> cache() {
+        if (cache == null) {
+            Configuration configuration = new ConfigurationBuilder()
+                    .memory()
+                    .size(config.getMemory())
+                    .evictionType(EvictionType.MEMORY)
+                    .expiration()
+                    .lifespan(1L, TimeUnit.HOURS)
+                    .jmxStatistics()
+                    .enable()
+                    .build();
+            GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
+                    .globalJmxStatistics()
+                    .enable()
+                    .cacheManagerName("PolitenessCacheManager")
+                    .jmxDomain(config.getJmxDomain())
+                    .allowDuplicateDomains(true)
+                    .build();
+            this.cache = new DefaultCacheManager(globalConfiguration, configuration).getCache("politeness-cache");
+        }
+        return this.cache;
+    }
+
+    public PolitenessConfiguration getConfig() {
+        return config;
+    }
 
     @Autowired
     public void setConfig(PolitenessConfiguration config) {
@@ -56,15 +91,15 @@ public class PolitenessCache {
         PolitenessEntry politenessEntry = this.config.getConfig(domain);
         if (politenessEntry != null) {
             log.debug("Domain " + domain + " added to cache with lifespan of " + politenessEntry.getDelay());
-            cache.put(domain + System.currentTimeMillis(), "", politenessEntry.getDelay(), TimeUnit.MILLISECONDS);
+            cache().put(domain + System.currentTimeMillis(), "", politenessEntry.getDelay(), TimeUnit.MILLISECONDS);
         } else {
             log.debug("Domain " + domain + " added to cache with configured default lifespan of " + this.config.getDefaultDelay());
-            cache.put(domain + System.currentTimeMillis(), "", this.config.getDefaultDelay(), TimeUnit.MILLISECONDS);
+            cache().put(domain + System.currentTimeMillis(), "", this.config.getDefaultDelay(), TimeUnit.MILLISECONDS);
         }
     }
 
     public boolean isAllowed(String domain) {
-        return cache.entrySet().stream().noneMatch(e -> e.getKey().startsWith(domain));
+        return cache().entrySet().stream().noneMatch(e -> e.getKey().startsWith(domain));
     }
 
     public int getDelayForDomain(final String domain) {

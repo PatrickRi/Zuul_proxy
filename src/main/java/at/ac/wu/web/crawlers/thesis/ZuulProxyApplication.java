@@ -1,5 +1,6 @@
 package at.ac.wu.web.crawlers.thesis;
 
+import at.ac.wu.web.crawlers.thesis.canonicalization.URLCanonicalizationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.trace.TraceRepository;
@@ -17,6 +18,13 @@ import org.springframework.cloud.netflix.zuul.filters.pre.PreDecorationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.RestController;
 
+//to start with alternative config:
+//java -jar zuul_proxy-0.0.1-SNAPSHOT.jar --spring.config.location=file:///C:/Users/Patrick/Desktop/application.yml
+
+//curl -u monuser:monuser localhost:8081/monitor/env
+//curl -X "POST" -u monuser:monuser -H "monuser:monuser" localhost:8081/monitor/env -d property=key
+//Refresh needed, also if yml is changed
+//curl -X "POST" -u monuser:monuser localhost:8081/monitor/refresh
 @SpringBootApplication
 @RestController
 @EnableZuulServer
@@ -64,5 +72,27 @@ public class ZuulProxyApplication {
     public PreDecorationFilter decorationFilter(RouteLocator routeLocator) {
         return new PreDecorationFilter(routeLocator, this.server.getServlet().getServletPrefix(), this.zuulProperties, new ProxyRequestHelper());
     }
+
+    @Bean
+    public URLCanonicalizationService canonicalizationService() {
+        return new URLCanonicalizationService();
+    }
+
+    //Eventually try this:
+    //https://stackoverflow.com/questions/16251273/can-i-watch-for-single-file-change-with-watchservice-not-the-whole-directory
+//    @Bean(name = "configChangeandRefreshBean")
+//    public FileSystemWatcher watcher(ContextRefresher contextRefresher)  {
+//        FileSystemWatcher fileSystemWatcher = new FileSystemWatcher(true, 2000, 500);
+//        fileSystemWatcher.setTriggerFilter(new TriggerFileFilter("application.yml"));
+//        fileSystemWatcher.addListener((files) -> {
+//            contextRefresher.refresh();
+//        });
+////        new File("./src/main/resources/
+////        fileSystemWatcher.addSourceFolders(new ClassPathFolders(new DefaultRestartInitializer().getInitialUrls(Thread.currentThread())));
+//        fileSystemWatcher.addSourceFolder(new File("./src/main/resources/"));
+//        fileSystemWatcher.start();
+//        return fileSystemWatcher;
+//    }
+
 
 }

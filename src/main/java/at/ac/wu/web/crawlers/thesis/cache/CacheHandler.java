@@ -18,6 +18,8 @@ import java.util.HashMap;
 import static org.apache.http.HttpHeaders.*;
 
 /**
+ * This class handles the interaction with the cache itself ({@link PageCache})
+ *
  * Created by Patrick on 01.08.2017.
  */
 @Service
@@ -28,6 +30,13 @@ public class CacheHandler {
     @Autowired
     PageCache cache;
 
+    /**
+     * Tries to retrieve a cached entry using various parameters of the given request.
+     *
+     * @param request Request
+     * @return the value if found in the cache, or
+     * {@code null} if the cache contains no entry for the key
+     */
     public CacheEntry getContent(HttpServletRequest request) {
         CacheEntry entry;
         try {
@@ -53,6 +62,14 @@ public class CacheHandler {
         return null;
     }
 
+    /**
+     * Populates the cache with the given content, depending on the paramters.
+     *
+     * @param url requested URL
+     * @param headers Response headers
+     * @param content Response body in binary form
+     * @param request Request
+     */
     public void put(URL url, Header[] headers, byte[] content, HttpServletRequest request) {
         if (headers != null && content != null && content.length > 1) {
             CacheEntry cacheEntry = createCacheEntry(url, headers, content);

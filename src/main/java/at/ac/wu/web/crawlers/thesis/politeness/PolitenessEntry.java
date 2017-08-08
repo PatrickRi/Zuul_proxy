@@ -1,6 +1,8 @@
 package at.ac.wu.web.crawlers.thesis.politeness;
 
 /**
+ * Configuration object for politeness restrictions for a domain.
+ *
  * Created by Patrick on 11.07.2017.
  */
 public class PolitenessEntry {

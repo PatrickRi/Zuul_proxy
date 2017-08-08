@@ -6,9 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 /**
- * The UserAgentDirectives class stores the configuration for a single
- * user agent as defined in the robots.txt. The user agent string used
- * depends on the most recent User-agent: definition in the robots.txt file.
+ * Stores the configuration as defined in the robots.txt.
  *
  * @author Patrick
  */
@@ -21,57 +19,6 @@ public class UserAgentDirectives {
     private Double crawlDelay = null;
     private Set<PathRule> pathRules = new HashSet<>();
 
-    /**
-     * Comparator used to order the list of matching path rules in such a way
-     * that the most specific match (= longest) match comes first.
-     */
-    static class PathComparator implements Comparator<PathRule> {
-        /** The path to compare the path rules with */
-        String path;
-
-        /** Initialize with the path */
-        PathComparator(String path) {
-            this.path = path;
-        }
-
-        /**
-         * Compare two paths.
-         * If lhs matches and rhs does not, this will return -1
-         * If rhs matches and lhs does not, this will return 1
-         * If both match or both do not match,, this will return the result of
-         *    a numeric comparison of the length of both patterns, where
-         *    the longest (=most specific) one will come first.
-         */
-        @Override
-        public int compare(PathRule lhs, PathRule rhs) {
-            boolean p1Match = lhs.matches(path);
-            boolean p2Match = rhs.matches(path);
-
-            // Matching patterns come first
-            if (p1Match && !p2Match) {
-                return -1;
-            } else if (p2Match && !p1Match) {
-                return 1;
-            }
-
-            // Most specific pattern first
-            String p1 = lhs.pattern.toString();
-            String p2 = rhs.pattern.toString();
-
-            if (p1.length() != p2.length()) {
-                return Integer.compare(p2.length(), p1.length());
-            }
-
-            // Just order alphabetically if the patterns are of the same length
-            return p1.compareTo(p2);
-        }
-    }
-
-    /**
-     * Create a UserAgentDirectives clause
-     *
-     * @param userAgents The list user agents for this rule
-     */
     public UserAgentDirectives(Set<String> userAgents) {
         this.userAgents = userAgents;
     }
@@ -124,59 +71,6 @@ public class UserAgentDirectives {
         return HostDirectives.UNDEFINED;
     }
 
-    public static class UserAgentComparator implements Comparator<UserAgentDirectives> {
-        String crawlUserAgent;
-
-        UserAgentComparator(String myUA) {
-            crawlUserAgent = myUA;
-        }
-
-        @Override
-        public int compare(UserAgentDirectives lhs, UserAgentDirectives rhs) {
-            int matchLhs = lhs.match(crawlUserAgent);
-            int matchRhs = rhs.match(crawlUserAgent);
-            if (matchLhs != matchRhs) {
-                return Integer.compare(matchRhs, matchLhs); // Sort descending
-            }
-
-            // Return the shortest list of user-agents unequal
-            if (lhs.userAgents.size() != rhs.userAgents.size()) {
-                return Integer.compare(lhs.userAgents.size(), rhs.userAgents.size());
-            }
-
-            // Alphabetic sort when length of lists is equal
-            Iterator<String> i1 = lhs.userAgents.iterator();
-            Iterator<String> i2 = rhs.userAgents.iterator();
-
-            // Find first non-equal user agent
-            while (i1.hasNext()) {
-                String ua1 = i1.next();
-                String ua2 = i2.next();
-                int order = ua1.compareTo(ua2);
-                if (order != 0) {
-                    return order;
-                }
-            }
-
-            // List of user agents was also equal, so these directives are equal
-            return 0;
-        }
-    }
-
-    /**
-     * Add a rule to the list of rules for this user agent.
-     * Valid rules are: sitemap, crawl-delay, host, allow and disallow.
-     * These are based on the wikipedia article at:
-     *
-     * https://en.wikipedia.org/wiki/Robots_exclusion_standard
-     *
-     * and the Google documentation at:
-     *
-     * https://support.google.com/webmasters/answer/6062596
-     *
-     * @param rule The name of the rule
-     * @param value The value of the rule
-     */
     public void add(String rule, String value) {
         if (rule.equals("sitemap")) {
             if (this.sitemap == null) {
@@ -225,5 +119,84 @@ public class UserAgentDirectives {
      */
     public List<String> getSitemap() {
         return sitemap;
+    }
+
+    static class PathComparator implements Comparator<PathRule> {
+        String path;
+
+        PathComparator(String path) {
+            this.path = path;
+        }
+
+        /**
+         * Compare two paths.
+         * If lhs matches and rhs does not, this will return -1
+         * If rhs matches and lhs does not, this will return 1
+         * If both match or both do not match,, this will return the result of
+         * a numeric comparison of the length of both patterns, where
+         * the longest (=most specific) one will come first.
+         */
+        @Override
+        public int compare(PathRule lhs, PathRule rhs) {
+            boolean p1Match = lhs.matches(path);
+            boolean p2Match = rhs.matches(path);
+
+            // Matching patterns come first
+            if (p1Match && !p2Match) {
+                return -1;
+            } else if (p2Match && !p1Match) {
+                return 1;
+            }
+
+            // Most specific pattern first
+            String p1 = lhs.pattern.toString();
+            String p2 = rhs.pattern.toString();
+
+            if (p1.length() != p2.length()) {
+                return Integer.compare(p2.length(), p1.length());
+            }
+
+            // Just order alphabetically if the patterns are of the same length
+            return p1.compareTo(p2);
+        }
+    }
+
+    public static class UserAgentComparator implements Comparator<UserAgentDirectives> {
+        String crawlUserAgent;
+
+        UserAgentComparator(String myUA) {
+            crawlUserAgent = myUA;
+        }
+
+        @Override
+        public int compare(UserAgentDirectives lhs, UserAgentDirectives rhs) {
+            int matchLhs = lhs.match(crawlUserAgent);
+            int matchRhs = rhs.match(crawlUserAgent);
+            if (matchLhs != matchRhs) {
+                return Integer.compare(matchRhs, matchLhs); // Sort descending
+            }
+
+            // Return the shortest list of user-agents unequal
+            if (lhs.userAgents.size() != rhs.userAgents.size()) {
+                return Integer.compare(lhs.userAgents.size(), rhs.userAgents.size());
+            }
+
+            // Alphabetic sort when length of lists is equal
+            Iterator<String> i1 = lhs.userAgents.iterator();
+            Iterator<String> i2 = rhs.userAgents.iterator();
+
+            // Find first non-equal user agent
+            while (i1.hasNext()) {
+                String ua1 = i1.next();
+                String ua2 = i2.next();
+                int order = ua1.compareTo(ua2);
+                if (order != 0) {
+                    return order;
+                }
+            }
+
+            // List of user agents was also equal, so these directives are equal
+            return 0;
+        }
     }
 }

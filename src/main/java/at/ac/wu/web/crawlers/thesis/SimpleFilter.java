@@ -46,6 +46,8 @@ import java.util.Map;
 import static j2html.TagCreator.*;
 
 /**
+ * ZuulFilter enforcing politeness constraints for each incoming proxied request.
+ *
  * Created by Patrick on 04.03.2017.
  */
 public class SimpleFilter extends ZuulFilter {
@@ -54,7 +56,7 @@ public class SimpleFilter extends ZuulFilter {
     private final ProxyRequestHelper helper;
 
     @Autowired
-    PolitenessCache cache;
+    PolitenessCache politenessCache;
 
     @Autowired
     HttpUtils httpUtils;
@@ -79,7 +81,6 @@ public class SimpleFilter extends ZuulFilter {
                 break;
             }
         }
-
         if (createNewClient) {
             httpUtils.refreshClient();
         }
@@ -100,11 +101,18 @@ public class SimpleFilter extends ZuulFilter {
         return true;
     }
 
+    /**
+     * Executes the filter logic.
+     *
+     * @return null or exception
+     */
     @Override
     public Object run() {
         RequestContext context = RequestContext.getCurrentContext();
         HttpServletRequest request = context.getRequest();
         URL targetURL = null;
+        System.out.println("DEFAULT-DELAY" + this.politenessCache.getConfig().getDefaultDelay());
+        log.info("DEFAULT-DELAY" + this.politenessCache.getConfig().getDefaultDelay());
         try {
             targetURL = new URL(request.getRequestURL().toString());
 
@@ -114,9 +122,11 @@ public class SimpleFilter extends ZuulFilter {
             if (localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress.equalsIgnoreCase("localhost")) {
                 return null;
             }
+            //Check cache for already cached result
             CacheEntry cachedContent = cacheHandler.getContent(request);
             if (cachedContent != null) {
                 MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+                //Transform back headers - needed because not working with Jackson out of the box
                 HashMap<String, String> headers = cachedContent.getHeaders();
                 for (Map.Entry<String, String> entry : headers.entrySet()) {
                     String[] elements = entry.getValue().split("---_ENTRY_---");
@@ -134,6 +144,7 @@ public class SimpleFilter extends ZuulFilter {
                         map);
                 return null;
             }
+            //Check Robots Exclusion Protocol
             if (!robotsTxt.allows(targetURL)) {
                 log.debug(request.getRequestURL().toString() + " blocked because of robots.txt");
                 String html = html(
@@ -147,8 +158,9 @@ public class SimpleFilter extends ZuulFilter {
                 this.helper.setResponse(403, content, new HttpHeaders());
                 return null;
             }
-            if (!cache.getCache().isAllowed(httpUtils.getHttpHost(targetURL).getHostName())) {
-                int delayForDomain = cache.getCache().getDelayForDomain(httpUtils.getHttpHost(targetURL).getHostName());
+            //Check politeness constraints (delays)
+            if (!politenessCache.getCache().isAllowed(targetURL.getHost())) {
+                int delayForDomain = politenessCache.getCache().getDelayForDomain(targetURL.getHost());
                 log.debug(request.getRequestURL().toString() + " blocked because of configured delay of " + delayForDomain);
                 //https://tools.ietf.org/html/rfc6585 - include retry header and html error
                 String html = html(
@@ -208,11 +220,10 @@ public class SimpleFilter extends ZuulFilter {
 
         HttpRequest httpRequest = httpUtils.buildHttpRequest(verb, uri, entity, headers, params, request);
         try {
-            log.debug(httpHost.getHostName() + " " + httpHost.getPort() + " "
-                    + httpHost.getSchemeName());
+            log.debug("Requesting: " + uri);
             CloseableHttpResponse zuulResponse = forwardRequest(httpclient, httpHost,
                     httpRequest);
-            this.cache.getCache().add(httpHost.getHostName());
+            this.politenessCache.getCache().add(httpHost.getHostName());
             this.helper.appendDebug(info, zuulResponse.getStatusLine().getStatusCode(),
                     revertHeaders(zuulResponse.getAllHeaders()));
             return zuulResponse;

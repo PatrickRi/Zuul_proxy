@@ -1,40 +1,66 @@
 zuul:
-  ignoredPatterns: /trace/**, /trace
+  ignoredPatterns: /trace/**, /trace, /politeness, /politeness/**
   routes:
     web: /*
     web_all: /**
     all: /
   debug:
     request: true
+
 server.port: 9999
-#server.ssl.key-store: keystore.p12
-#server.ssl.key-store-password: password
-#server.ssl.keyStoreType: PKCS12
-#server.ssl.keyAlias: tomcat
 debug: true
 logging.level.org.springframework.web: DEBUG
 logging.level.at.ac.wu.web.crawlers.thesis: DEBUG
-logging.level.org.infinispan: TRACE
+#logging.level.org.infinispan: TRACE
+
+#defines user for monitoring endpoints
+security:
+  user:
+    name: monuser
+    password: monuser
+    role: ACTRADMIN
 
 management:
   port: 8081
+  #address: 127.0.0.1 #only reachable from localhost
+  security:
+    enabled: true
+    roles: ACTRADMIN
+  context-path: /monitor
+  #curl -u monuser:monuser localhost:8081/monitor/trace
 
 endpoints:
   trace:
     enabled: true
-    enable: true
-    sensitive: false
+    sensitive: true
+  info:
+    enabled: true
+    sensitive: true
 
 spring:
+  devtools:
+    restart:
+      enabled: false
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
 
-abc:
-  domain: deafult
-  delay: 200
-
-domains:
+politeness:
+  domains:
     - domain: derStandard.at/**
       delay: 1000
     - domain: sport.orf.at/**
       delay: 5000
+  use-default: false
+  default-domain:
+    domain: default
+    delay: 1232132
+  jmx-domain: politenessCache
+  memory: 100000
+  delay-jmx-domain: delayCache
+
+page:
+  cache:
+#    directory: define custom directory for cache persistence
+    jmx-domain: pageCache
+    memory: 1000000
+    threads: 4

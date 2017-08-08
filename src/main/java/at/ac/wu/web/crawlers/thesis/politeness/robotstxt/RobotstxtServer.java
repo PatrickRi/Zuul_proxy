@@ -26,31 +26,17 @@ import java.util.Map;
 public class RobotstxtServer {
 
     private static final Logger logger = LoggerFactory.getLogger(RobotstxtServer.class);
-
+    protected final Map<String, HostDirectives> host2directivesCache = new HashMap<>();
+    private final int maxBytes = 16384;
     @Autowired
     HttpUtils httpUtils;
-
     @Autowired
     RobotstxtConfig config;
-
-    protected final Map<String, HostDirectives> host2directivesCache = new HashMap<>();
-
-    private final int maxBytes = 16384;
-
-//    public RobotstxtServer(RobotstxtConfig config) {
-//        this(config, 16384);
-//    }
-//
-//    public RobotstxtServer(RobotstxtConfig config, int maxBytes) {
-//        this.config = config;
-//        this.maxBytes = maxBytes;
-//    }
 
     private static String getHost(URL url) {
         return url.getHost().toLowerCase();
     }
 
-    /** Please note that in the case of a bad URL, TRUE will be returned */
     public boolean allows(URL url) {
         if (!config.isEnabled()) {
             return true;
@@ -82,7 +68,7 @@ public class RobotstxtServer {
     private HostDirectives fetchDirectives(URL url) {
         String host = getHost(url);
         String port = ((url.getPort() == url.getDefaultPort()) || (url.getPort() == -1)) ? "" :
-                      (":" + url.getPort());
+                (":" + url.getPort());
         String proto = url.getProtocol();
 
         HostDirectives directives = null;
@@ -94,10 +80,6 @@ public class RobotstxtServer {
             CloseableHttpResponse httpResponse = httpUtils.getHttpClient().execute(httpHost, httpRequest);
 
             if (httpResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-//                Page page = new Page(robotsTxtUrl);
-                // Most recent answer on robots.txt max size is
-                // https://goo.gl/OqpKbP
-//                fetchResult.fetchContent(page, 10_000 * 1024);
                 String contentType = httpResponse.getFirstHeader("content-type") != null ? httpResponse.getFirstHeader("content-type").getValue() : "";
                 ByteSource source = new ByteSource() {
                     @Override
@@ -113,20 +95,18 @@ public class RobotstxtServer {
                         content = source.asCharSource(Charset.forName(httpResponse.getFirstHeader("content-charset").getValue())).read();
                     }
                     directives = RobotstxtParser.parse(content, config);
-                } else if (contentType
-                               .contains(
-                                   "html")) { // TODO This one should be upgraded to remove all
+                } else if (contentType.contains("html")) {
                     // html tags
                     String content = source.asCharSource(Charset.forName("UTF-8")).read();
                     directives = RobotstxtParser.parse(content, config);
                 } else {
                     logger.warn(
-                        "Can't read this robots.txt: {}  as it is not written in plain text, " +
-                        "contentType: {}", url, contentType);
+                            "Can't read this robots.txt: {}  as it is not written in plain text, " +
+                                    "contentType: {}", url, contentType);
                 }
             } else {
                 logger.debug("Can't read this robots.txt: {}  as it's status code is {}",
-                             url, httpResponse.getStatusLine().getStatusCode());
+                        url, httpResponse.getStatusLine().getStatusCode());
             }
         } catch (Exception ex) {
             logger.error("Error occurred while fetching (robots) url: " + url, ex);

@@ -50,10 +50,6 @@ public class RobotstxtParser {
                     if (rule.equals("user-agent")) {
                         String currentUserAgent = value.toLowerCase();
                         if (uaDirectives != null) {
-                            // If uaDirectives is not null, this means that one or
-                            // more rules followed the User-agent: definition list
-                            // In that case, it's not allowed to add more user-agents,
-                            // so this is an entirely new set of directives.
                             userAgents = new HashSet<>();
                             directives.addDirectives(uaDirectives);
                             uaDirectives = null;

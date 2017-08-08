@@ -8,26 +8,14 @@ import org.springframework.stereotype.Component;
 public class RobotstxtConfig {
 
     /**
-     * Should the crawler obey Robots.txt protocol? More info on Robots.txt is
-     * available at http://www.robotstxt.org/
+     * Should the crawler respect the Robots.txt protocol?
      */
     private boolean enabled = true;
 
     /**
-     * user-agent name that will be used to determine whether some servers have
-     * specific rules for this agent name.
+     * user-agent name
      */
     private String userAgentName = "wu-is-crawler";
-
-    /**
-     * Whether to ignore positive user-agent discrimination. There are websties that use
-     * a white-list system where they explicitly allow Googlebot but disallow all other
-     * bots by a "User-agent: * Disallow: /" rule. Setting this setting to true
-     * will ignore the user-agent and apply the "Allow" rule to all user-agents.
-     * This can still be overridden when a robots.txt explicitly disallows the configured
-     * User-agent, as such a rule supersedes the generic rule.
-     */
-    private boolean ignoreUADiscrimination = false;
 
     /**
      * The maximum number of hosts for which their robots.txt is cached.
@@ -56,13 +44,5 @@ public class RobotstxtConfig {
 
     public void setCacheSize(int cacheSize) {
         this.cacheSize = cacheSize;
-    }
-
-    public void setIgnoreUADiscrimination(boolean ignore) {
-        this.ignoreUADiscrimination = ignore;
-    }
-
-    public boolean getIgnoreUADiscrimination() {
-        return ignoreUADiscrimination;
     }
 }

@@ -77,9 +77,6 @@ public class HttpUtils {
                 .setCookieSpec(CookieSpecs.IGNORE_COOKIES).build();
 
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
-//        if (!this.sslHostnameValidationEnabled) { //default true
-//            httpClientBuilder.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
-//        }
         return httpClientBuilder.setConnectionManager(newConnectionManager())
                 .disableContentCompression()
                 .useSystemProperties().setDefaultRequestConfig(requestConfig)
