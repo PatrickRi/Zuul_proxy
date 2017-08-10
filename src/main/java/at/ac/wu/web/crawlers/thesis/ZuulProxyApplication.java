@@ -1,6 +1,10 @@
 package at.ac.wu.web.crawlers.thesis;
 
+import at.ac.wu.web.crawlers.thesis.cache.PageCache;
 import at.ac.wu.web.crawlers.thesis.canonicalization.URLCanonicalizationService;
+import at.ac.wu.web.crawlers.thesis.monitoring.CacheMetrics;
+import at.ac.wu.web.crawlers.thesis.politeness.DomainDelayCache;
+import at.ac.wu.web.crawlers.thesis.politeness.PolitenessCache;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.trace.TraceRepository;
@@ -94,5 +98,9 @@ public class ZuulProxyApplication {
 //        return fileSystemWatcher;
 //    }
 
-
+    @Bean
+    public CacheMetrics cacheMetrics(DomainDelayCache delayCache, PolitenessCache politenessCache, PageCache
+            pageCache) {
+        return new CacheMetrics(delayCache, politenessCache, pageCache);
+    }
 }

@@ -1,13 +1,12 @@
 package at.ac.wu.web.crawlers.thesis;
 
 import at.ac.wu.web.crawlers.thesis.cache.CacheEntry;
-import at.ac.wu.web.crawlers.thesis.cache.CacheHandler;
+import at.ac.wu.web.crawlers.thesis.cache.PageCacheHandler;
 import at.ac.wu.web.crawlers.thesis.http.HttpUtils;
 import at.ac.wu.web.crawlers.thesis.politeness.PolitenessCache;
-import at.ac.wu.web.crawlers.thesis.politeness.robotstxt.RobotstxtServer;
+import at.ac.wu.web.crawlers.thesis.politeness.robotstxt.RobotstxtHandler;
 import com.netflix.zuul.ZuulFilter;
 import com.netflix.zuul.context.RequestContext;
-import com.netflix.zuul.util.HTTPRequestUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -20,6 +19,7 @@ import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.metrics.CounterService;
 import org.springframework.cloud.context.environment.EnvironmentChangeEvent;
 import org.springframework.cloud.netflix.zuul.filters.ProxyRequestHelper;
 import org.springframework.cloud.netflix.zuul.filters.TraceProxyRequestHelper;
@@ -29,6 +29,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StopWatch;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
@@ -40,14 +41,13 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static j2html.TagCreator.*;
 
 /**
  * ZuulFilter enforcing politeness constraints for each incoming proxied request.
- *
+ * <p>
  * Created by Patrick on 04.03.2017.
  */
 public class SimpleFilter extends ZuulFilter {
@@ -62,10 +62,13 @@ public class SimpleFilter extends ZuulFilter {
     HttpUtils httpUtils;
 
     @Autowired
-    RobotstxtServer robotsTxt;
+    RobotstxtHandler robotsTxt;
 
     @Autowired
-    CacheHandler cacheHandler;
+    PageCacheHandler pageCacheHandler;
+
+    @Autowired
+    CounterService counterService;
 
     public SimpleFilter(TraceProxyRequestHelper helper) {
         this.helper = helper;
@@ -79,6 +82,9 @@ public class SimpleFilter extends ZuulFilter {
             if (key.startsWith("zuul.host.")) {
                 createNewClient = true;
                 break;
+            }
+            if (key.contains("politeness")) {
+                System.out.println("CHANGE: " + key);
             }
         }
         if (createNewClient) {
@@ -111,20 +117,21 @@ public class SimpleFilter extends ZuulFilter {
         RequestContext context = RequestContext.getCurrentContext();
         HttpServletRequest request = context.getRequest();
         URL targetURL = null;
-        System.out.println("DEFAULT-DELAY" + this.politenessCache.getConfig().getDefaultDelay());
-        log.info("DEFAULT-DELAY" + this.politenessCache.getConfig().getDefaultDelay());
         try {
             targetURL = new URL(request.getRequestURL().toString());
+            counterService.increment("counter.requests.total");
 
             //Do not call yourself! Answer with 200 OK
             String localAddress = InetAddress.getLocalHost().getHostAddress();
             String requestAddress = InetAddress.getByName(targetURL.getHost()).getHostAddress();
-            if (localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress.equalsIgnoreCase("localhost")) {
+            if (localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress
+                    .equalsIgnoreCase("localhost")) {
                 return null;
             }
             //Check cache for already cached result
-            CacheEntry cachedContent = cacheHandler.getContent(request);
+            CacheEntry cachedContent = pageCacheHandler.getContent(request);
             if (cachedContent != null) {
+                counterService.increment("counter.requests.served.cached");
                 MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
                 //Transform back headers - needed because not working with Jackson out of the box
                 HashMap<String, String> headers = cachedContent.getHeaders();
@@ -139,37 +146,39 @@ public class SimpleFilter extends ZuulFilter {
                 }
                 InputStream responseContent = new ByteArrayInputStream(cachedContent.getData());
 
-                this.helper.setResponse(200,
-                        responseContent,
-                        map);
+                this.helper.setResponse(200, responseContent, map);
                 return null;
             }
             //Check Robots Exclusion Protocol
             if (!robotsTxt.allows(targetURL)) {
+                counterService.increment("counter.requests.denied.robotstxt");
                 log.debug(request.getRequestURL().toString() + " blocked because of robots.txt");
                 String html = html(
                         head(
                                 title("Request Blocked")
-                        ),
+                            ),
                         body(h1("Request Blocked"), p("Blocked because URL is excluded from allowed URLS.")
-                        )
-                ).render();
+                            )
+                                  ).render();
                 InputStream content = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
                 this.helper.setResponse(403, content, new HttpHeaders());
                 return null;
             }
             //Check politeness constraints (delays)
-            if (!politenessCache.getCache().isAllowed(targetURL.getHost())) {
-                int delayForDomain = politenessCache.getCache().getDelayForDomain(targetURL.getHost());
-                log.debug(request.getRequestURL().toString() + " blocked because of configured delay of " + delayForDomain);
+            if (!politenessCache.isAllowed(targetURL.getHost())) {
+                counterService.increment("counter.requests.denied.politeness");
+                int delayForDomain = politenessCache.getDelayForDomain(targetURL.getHost());
+                log.debug(request.getRequestURL().toString() + " blocked because of configured delay of " +
+                                  delayForDomain);
                 //https://tools.ietf.org/html/rfc6585 - include retry header and html error
                 String html = html(
                         head(
                                 title("Too Many Requests")
-                        ),
-                        body(h1("Too Many Requests"), p("There must be a delay of " + delayForDomain + " milliseconds between each request.")
-                        )
-                ).render();
+                            ),
+                        body(h1("Too Many Requests"), p("There must be a delay of " + delayForDomain + " milliseconds" +
+                                                                " between each request.")
+                            )
+                                  ).render();
                 InputStream content = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("Retry-After", "" + delayForDomain);
@@ -190,10 +199,11 @@ public class SimpleFilter extends ZuulFilter {
         }
 
         this.helper.addIgnoredHeaders();
-
         try {
-            CloseableHttpResponse response = forward(httpUtils.getHttpClient(), verb, request.getRequestURL().toString(), request,
-                    headers, params, requestEntity);
+            this.politenessCache.add(new URL(request.getRequestURL().toString()).getHost());
+            CloseableHttpResponse response = forward(httpUtils.getHttpClient(), verb, request.getRequestURL()
+                                                             .toString(), request,
+                                                     headers, params, requestEntity);
             setResponse(response, targetURL, request);
         } catch (Exception ex) {
             throw new ZuulRuntimeException(ex);
@@ -206,7 +216,7 @@ public class SimpleFilter extends ZuulFilter {
                                           MultiValueMap<String, String> params, InputStream requestEntity)
             throws Exception {
         Map<String, Object> info = this.helper.debug(verb, uri, headers, params,
-                requestEntity);
+                                                     requestEntity);
         HttpHost httpHost = httpUtils.getHttpHost(new URL(uri));
         int contentLength = request.getContentLength();
 
@@ -222,10 +232,9 @@ public class SimpleFilter extends ZuulFilter {
         try {
             log.debug("Requesting: " + uri);
             CloseableHttpResponse zuulResponse = forwardRequest(httpclient, httpHost,
-                    httpRequest);
-            this.politenessCache.getCache().add(httpHost.getHostName());
+                                                                httpRequest);
             this.helper.appendDebug(info, zuulResponse.getStatusLine().getStatusCode(),
-                    revertHeaders(zuulResponse.getAllHeaders()));
+                                    revertHeaders(zuulResponse.getAllHeaders()));
             return zuulResponse;
         } finally {
             // When HttpClient instance is no longer needed,
@@ -249,7 +258,21 @@ public class SimpleFilter extends ZuulFilter {
 
     private CloseableHttpResponse forwardRequest(CloseableHttpClient httpclient,
                                                  HttpHost httpHost, HttpRequest httpRequest) throws IOException {
-        return httpclient.execute(httpHost, httpRequest);
+        StopWatch w = new StopWatch("1");
+        try {
+            w.start();
+        } catch (Exception ex) {
+            log.debug("Failed to start measuring time for " + httpHost);
+        }
+        CloseableHttpResponse response = httpclient.execute(httpHost, httpRequest);
+        try {
+            w.stop();
+            this.politenessCache.updateLatency(httpHost.getHostName(), w.getLastTaskTimeMillis(), response
+                    .getStatusLine().getStatusCode());
+        } catch (Exception ex) {
+            log.debug("Failed to stop measuring time for " + httpHost);
+        }
+        return response;
     }
 
     private InputStream getRequestBody(HttpServletRequest request) {
@@ -272,25 +295,11 @@ public class SimpleFilter extends ZuulFilter {
         baos.close();
         MultiValueMap<String, String> multiValueMap = revertHeaders(response.getAllHeaders());
         InputStream responseContent = new ByteArrayInputStream(bytes);
-        boolean gZipped = isGzipped(multiValueMap);
-        this.cacheHandler.put(url, response.getAllHeaders(), bytes, request);
+        this.pageCacheHandler.put(url, response.getAllHeaders(), bytes, request);
 
 
         this.helper.setResponse(response.getStatusLine().getStatusCode(),
-                response.getEntity() == null ? null : responseContent,
-                multiValueMap);
+                                response.getEntity() == null ? null : responseContent,
+                                multiValueMap);
     }
-
-    private boolean isGzipped(MultiValueMap<String, String> httpHeaders) {
-        if (httpHeaders.containsKey(HttpHeaders.CONTENT_ENCODING)) {
-            List<String> collection = httpHeaders.get(HttpHeaders.CONTENT_ENCODING);
-            for (String header : collection) {
-                if (HTTPRequestUtils.getInstance().isGzipped(header)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
 }

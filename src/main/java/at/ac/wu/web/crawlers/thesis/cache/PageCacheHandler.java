@@ -23,9 +23,9 @@ import static org.apache.http.HttpHeaders.*;
  * Created by Patrick on 01.08.2017.
  */
 @Service
-public class CacheHandler {
+public class PageCacheHandler {
 
-    private static Logger log = LoggerFactory.getLogger(CacheHandler.class);
+    private static Logger log = LoggerFactory.getLogger(PageCacheHandler.class);
 
     @Autowired
     PageCache cache;
@@ -44,7 +44,7 @@ public class CacheHandler {
             String header = request.getHeader(HttpHeaders.CONTENT_TYPE);
             if (header == null || header.isEmpty()) {
                 entry = cache.getEntry(new CacheKey(url.toString()));
-                if (entry == null) {
+                if (entry == null || !checkCacheControl(request, entry)) {
                     entry = cache.getEntry(new CacheKey(url.toString(), "*/*"));
                 }
             } else {

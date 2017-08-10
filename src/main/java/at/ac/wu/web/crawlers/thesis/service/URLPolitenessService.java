@@ -1,7 +1,7 @@
 package at.ac.wu.web.crawlers.thesis.service;
 
 import at.ac.wu.web.crawlers.thesis.politeness.PolitenessCache;
-import at.ac.wu.web.crawlers.thesis.politeness.robotstxt.RobotstxtServer;
+import at.ac.wu.web.crawlers.thesis.politeness.robotstxt.RobotstxtHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,7 @@ public class URLPolitenessService {
     PolitenessCache cache;
 
     @Autowired
-    RobotstxtServer robotsTxt;
+    RobotstxtHandler robotsTxt;
 
     /**
      * The URLs are filtered if they are null.
@@ -65,7 +65,7 @@ public class URLPolitenessService {
         List<URLPoliteness> result = new ArrayList<>(input.size());
         for (URL url : urls) {
             final String host = url.getHost();
-            int delay = cache.getCache().getDelayForDomain(host);
+            int delay = cache.getDelayForDomain(host);
             if (robotsTxt.allows(url)) {
                 if (cache.isAllowed(host)) {
                     if (visitedDomains.containsKey(host)) {

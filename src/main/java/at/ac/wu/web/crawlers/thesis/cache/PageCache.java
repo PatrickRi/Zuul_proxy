@@ -31,8 +31,8 @@ public class PageCache {
     @Autowired
     PageCacheConfiguration cacheProperties;
 
-    public PageCache getCache() {
-        return this;
+    public Cache<CacheKey, byte[]> getCache() {
+        return cache();
     }
 
     private Cache<CacheKey, byte[]> cache() {

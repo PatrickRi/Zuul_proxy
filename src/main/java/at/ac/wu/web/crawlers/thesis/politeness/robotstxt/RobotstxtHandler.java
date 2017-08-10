@@ -1,6 +1,7 @@
 package at.ac.wu.web.crawlers.thesis.politeness.robotstxt;
 
 import at.ac.wu.web.crawlers.thesis.http.HttpUtils;
+import at.ac.wu.web.crawlers.thesis.politeness.DomainDelayCache;
 import com.google.common.io.ByteSource;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpRequest;
@@ -23,15 +24,17 @@ import java.util.Map;
  * @author Patrick
  */
 @Configuration
-public class RobotstxtServer {
+public class RobotstxtHandler {
 
-    private static final Logger logger = LoggerFactory.getLogger(RobotstxtServer.class);
+    private static final Logger logger = LoggerFactory.getLogger(RobotstxtHandler.class);
     protected final Map<String, HostDirectives> host2directivesCache = new HashMap<>();
     private final int maxBytes = 16384;
     @Autowired
     HttpUtils httpUtils;
     @Autowired
-    RobotstxtConfig config;
+    RobotstxtConfiguration config;
+    @Autowired
+    DomainDelayCache delayCache;
 
     private static String getHost(URL url) {
         return url.getHost().toLowerCase();
@@ -103,6 +106,13 @@ public class RobotstxtServer {
                     logger.warn(
                             "Can't read this robots.txt: {}  as it is not written in plain text, " +
                                     "contentType: {}", url, contentType);
+                }
+                if (directives != null && directives.getRules() != null) {
+                    for (UserAgentDirectives uad : directives.getRules()) {
+                        if (uad.match(directives.getUserAgent()) != 0 && uad.getCrawlDelay() != null) {
+                            delayCache.updateRobotsDelay(host, uad.getCrawlDelay());
+                        }
+                    }
                 }
             } else {
                 logger.debug("Can't read this robots.txt: {}  as it's status code is {}",

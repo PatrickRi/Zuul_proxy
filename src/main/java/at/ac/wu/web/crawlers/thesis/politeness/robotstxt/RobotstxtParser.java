@@ -19,7 +19,7 @@ public class RobotstxtParser {
     private static final Set<String> VALID_RULES = new HashSet<>(
         Arrays.asList("allow", "disallow", "user-agent", "crawl-delay", "host", "sitemap"));
 
-    public static HostDirectives parse(String content, RobotstxtConfig config) {
+    public static HostDirectives parse(String content, RobotstxtConfiguration config) {
         HostDirectives directives = new HostDirectives(config);
         StringTokenizer st = new StringTokenizer(content, "\n\r");
 

@@ -46,14 +46,14 @@ spring:
 
 politeness:
   domains:
-    - domain: derStandard.at/**
+    - domain: derstandard.at
       delay: 1000
-    - domain: sport.orf.at/**
+    - domain: sport.orf.at
       delay: 5000
   use-default: false
   default-domain:
     domain: default
-    delay: 1232132
+    delay: 5555
   jmx-domain: politenessCache
   memory: 100000
   delay-jmx-domain: delayCache

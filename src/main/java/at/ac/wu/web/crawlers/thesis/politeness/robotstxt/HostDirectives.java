@@ -16,10 +16,10 @@ public class HostDirectives {
     /** A list of rule sets, sorted on match with the configured user agent */
     private Set<UserAgentDirectives> rules;
     private long timeLastAccessed;
-    private RobotstxtConfig config;
+    private RobotstxtConfiguration config;
     private String userAgent;
 
-    public HostDirectives(RobotstxtConfig configuration) {
+    public HostDirectives(RobotstxtConfiguration configuration) {
         timeFetched = System.currentTimeMillis();
         config = configuration;
         userAgent = config.getUserAgentName().toLowerCase();
@@ -78,5 +78,13 @@ public class HostDirectives {
 
     public long getLastAccessTime() {
         return timeLastAccessed;
+    }
+
+    public Set<UserAgentDirectives> getRules() {
+        return rules;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
     }
 }

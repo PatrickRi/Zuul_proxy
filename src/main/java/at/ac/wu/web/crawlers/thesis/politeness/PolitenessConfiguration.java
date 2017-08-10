@@ -1,26 +1,31 @@
 package at.ac.wu.web.crawlers.thesis.politeness;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
 
 import java.util.HashSet;
 
 /**
  * Configuration for the politeness cache {@link PolitenessCache}
- *
+ * <p>
  * Created by Patrick on 13.07.2017.
  */
 @Component
 @ConfigurationProperties(prefix = "politeness")
 public class PolitenessConfiguration {
 
+    private static Logger log = LoggerFactory.getLogger(PolitenessConfiguration.class);
+    @Autowired
+    Environment environment;
+    @Autowired
+    DomainDelayCache delayCache;
     private HashSet<PolitenessEntry> domains = new HashSet<>();
-
     private PolitenessEntry defaultDomain;
-
     private boolean useDefault = true;
-
     private String jmxDomain = "politenessCache";
     private String delayJmxDomain = "delayCache";
     private long memory = 100_000L;
@@ -35,17 +40,6 @@ public class PolitenessConfiguration {
         return this;
     }
 
-    public PolitenessEntry getConfig(String domain) {
-        AntPathMatcher matcher = new AntPathMatcher();
-        matcher.setCaseSensitive(false);
-        for (PolitenessEntry entry : this.domains) {
-            if (matcher.matchStart(entry.getDomain(), domain)) {
-                return entry;
-            }
-        }
-        return null;
-    }
-
     public PolitenessEntry getDefaultDomain() {
         return defaultDomain;
     }
@@ -55,7 +49,7 @@ public class PolitenessConfiguration {
         return this;
     }
 
-    public int getDefaultDelay()  {
+    public int getDefaultDelay() {
         return this.defaultDomain.getDelay();
     }
 

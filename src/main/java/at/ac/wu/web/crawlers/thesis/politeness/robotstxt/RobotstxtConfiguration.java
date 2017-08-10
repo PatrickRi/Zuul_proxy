@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConfigurationProperties
-public class RobotstxtConfig {
+public class RobotstxtConfiguration {
 
     /**
      * Should the crawler respect the Robots.txt protocol?

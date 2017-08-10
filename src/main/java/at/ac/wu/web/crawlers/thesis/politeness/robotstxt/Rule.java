@@ -5,13 +5,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.regex.Pattern;
 
-public class PathRule {
-    protected static final Logger logger = LoggerFactory.getLogger(PathRule.class);
+public class Rule {
+    protected static final Logger logger = LoggerFactory.getLogger(Rule.class);
 
     public int type;
     public Pattern pattern;
 
-    public PathRule(int type, String pattern) {
+    public Rule(int type, String pattern) {
         this.type = type;
         this.pattern = robotsPatternToRegexp(pattern);
     }

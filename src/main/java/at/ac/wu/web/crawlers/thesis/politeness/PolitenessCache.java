@@ -26,30 +26,10 @@ public class PolitenessCache {
 
     static Cache<String, String> cache;
     private static Logger log = LoggerFactory.getLogger(PolitenessCache.class);
-    private static PolitenessCache INSTANCE;
-
-    static {
-
-        Configuration configuration = new ConfigurationBuilder()
-                .memory()
-                .size(20_000L)
-                .evictionType(EvictionType.MEMORY)
-                .expiration()
-                .lifespan(1L, TimeUnit.HOURS)
-                .jmxStatistics()
-                .enable()
-                .build();
-        GlobalConfiguration globalConfiguration = new GlobalConfigurationBuilder()
-                .globalJmxStatistics()
-                .enable()
-                .cacheManagerName("PolitenessCacheManager")
-                .jmxDomain("politenessCache")
-                .allowDuplicateDomains(true)
-                .build();
-        cache = new DefaultCacheManager(globalConfiguration, configuration).getCache("politeness-cache");
-    }
-
-    private PolitenessConfiguration config;
+    @Autowired
+    PolitenessConfiguration config;
+    @Autowired
+    DomainDelayCache delayCache;
 
     private Cache<String, String> cache() {
         if (cache == null) {
@@ -74,21 +54,12 @@ public class PolitenessCache {
         return this.cache;
     }
 
-    public PolitenessConfiguration getConfig() {
-        return config;
-    }
-
-    @Autowired
-    public void setConfig(PolitenessConfiguration config) {
-        this.config = config;
-    }
-
-    public PolitenessCache getCache() {
-        return this;
+    public Cache<String, String> getCache() {
+        return cache();
     }
 
     public void add(String domain) {
-        PolitenessEntry politenessEntry = this.config.getConfig(domain);
+        PolitenessEntry politenessEntry = this.delayCache.getEntry(domain);
         if (politenessEntry != null) {
             log.debug("Domain " + domain + " added to cache with lifespan of " + politenessEntry.getDelay());
             cache().put(domain + System.currentTimeMillis(), "", politenessEntry.getDelay(), TimeUnit.MILLISECONDS);
@@ -103,10 +74,18 @@ public class PolitenessCache {
     }
 
     public int getDelayForDomain(final String domain) {
-        if (this.config.getConfig(domain) == null) {
+        PolitenessEntry entry = this.delayCache.getEntry(domain);
+        if (entry == null) {
             return this.config.getDefaultDelay();
         } else {
-            return this.config.getConfig(domain).getDelay();
+            return entry.getDelay();
+        }
+    }
+
+    public void updateLatency(String domain, long timeMillis, int statusCode) {
+        PolitenessEntry entry = this.delayCache.getEntry(domain);
+        if (entry != null) {
+
         }
     }
 }

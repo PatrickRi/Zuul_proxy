@@ -17,7 +17,7 @@ public class UserAgentDirectives {
     private List<String> sitemap = null;
     private String preferredHost = null;
     private Double crawlDelay = null;
-    private Set<PathRule> pathRules = new HashSet<>();
+    private Set<Rule> pathRules = new HashSet<>();
 
     public UserAgentDirectives(Set<String> userAgents) {
         this.userAgents = userAgents;
@@ -57,11 +57,11 @@ public class UserAgentDirectives {
         }
 
         // Order the rules based on their match with the path
-        Set<PathRule> rules = new TreeSet<>(new PathComparator(path));
+        Set<Rule> rules = new TreeSet<>(new PathComparator(path));
         rules.addAll(pathRules);
 
         // Return the verdict of the best matching rule
-        for (PathRule rule : rules) {
+        for (Rule rule : rules) {
             if (rule.matches(path)) {
                 logger.debug(rule.pattern + "["+ rule.type +"] matches for path " + path);
                 return rule.type;
@@ -86,9 +86,9 @@ public class UserAgentDirectives {
         } else if (rule.equals("host")) {
             this.preferredHost = value;
         } else if (rule.equals("allow")) {
-            this.pathRules.add(new PathRule(HostDirectives.ALLOWED, value));
+            this.pathRules.add(new Rule(HostDirectives.ALLOWED, value));
         } else if (rule.equals("disallow")) {
-            this.pathRules.add(new PathRule(HostDirectives.DISALLOWED, value));
+            this.pathRules.add(new Rule(HostDirectives.DISALLOWED, value));
         } else {
             logger.error("Invalid key in robots.txt passed to UserAgentRules: {}", rule);
         }
@@ -121,7 +121,7 @@ public class UserAgentDirectives {
         return sitemap;
     }
 
-    static class PathComparator implements Comparator<PathRule> {
+    static class PathComparator implements Comparator<Rule> {
         String path;
 
         PathComparator(String path) {
@@ -137,7 +137,7 @@ public class UserAgentDirectives {
          * the longest (=most specific) one will come first.
          */
         @Override
-        public int compare(PathRule lhs, PathRule rhs) {
+        public int compare(Rule lhs, Rule rhs) {
             boolean p1Match = lhs.matches(path);
             boolean p2Match = rhs.matches(path);
 
