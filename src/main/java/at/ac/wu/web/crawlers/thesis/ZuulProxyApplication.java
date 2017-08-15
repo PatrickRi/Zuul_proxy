@@ -68,7 +68,7 @@ public class ZuulProxyApplication {
     }
 
     @Bean
-    public SendErrorFilter errorFilter() { //TODO change to return special error code, not forward to /error!
+    public SendErrorFilter errorFilter() {
         return new SendErrorFilter();
     }
 

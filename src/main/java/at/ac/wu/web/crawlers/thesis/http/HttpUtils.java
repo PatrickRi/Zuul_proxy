@@ -1,28 +1,24 @@
 package at.ac.wu.web.crawlers.thesis.http;
 
-import org.apache.http.*;
-import org.apache.http.client.RedirectStrategy;
+import org.apache.http.Header;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
 import org.apache.http.client.config.CookieSpecs;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.entity.InputStreamEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.client.*;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicHttpEntityEnclosingRequest;
 import org.apache.http.message.BasicHttpRequest;
-import org.apache.http.protocol.HttpContext;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.MultiValueMap;
 
@@ -74,28 +70,16 @@ public class HttpUtils {
         final RequestConfig requestConfig = RequestConfig.custom()
                 .setSocketTimeout(100_000)
                 .setConnectTimeout(100_000)
-                .setCookieSpec(CookieSpecs.IGNORE_COOKIES).build();
+                .setCookieSpec(CookieSpecs.IGNORE_COOKIES)
+                .build();
 
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         return httpClientBuilder.setConnectionManager(newConnectionManager())
                 .disableContentCompression()
                 .useSystemProperties().setDefaultRequestConfig(requestConfig)
                 .setRetryHandler(new DefaultHttpRequestRetryHandler(0, false))
-                .setRedirectStrategy(new RedirectStrategy() {
-                    @Override
-                    public boolean isRedirected(HttpRequest request,
-                                                HttpResponse response, HttpContext context)
-                            throws ProtocolException {
-                        return false;
-                    }
-
-                    @Override
-                    public HttpUriRequest getRedirect(HttpRequest request,
-                                                      HttpResponse response, HttpContext context)
-                            throws ProtocolException {
-                        return null;
-                    }
-                }).build();
+                //https://stackoverflow.com/questions/5169468/handling-httpclient-redirects
+                .setRedirectStrategy(new LaxRedirectStrategy()).build();
     }
 
     public PoolingHttpClientConnectionManager newConnectionManager() {
@@ -121,16 +105,13 @@ public class HttpUtils {
             RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder
                     .<ConnectionSocketFactory>create()
                     .register(HTTP_SCHEME, PlainConnectionSocketFactory.INSTANCE);
-            registryBuilder.register(HTTPS_SCHEME,
-                    new SSLConnectionSocketFactory(sslContext));
+            registryBuilder.register(HTTPS_SCHEME, new SSLConnectionSocketFactory(sslContext));
             final Registry<ConnectionSocketFactory> registry = registryBuilder.build();
 
-            this.connectionManager = new PoolingHttpClientConnectionManager(registry, null, null, null,
-                    -1, TimeUnit.MILLISECONDS);
-            this.connectionManager
-                    .setMaxTotal(2000);
-            this.connectionManager.setDefaultMaxPerRoute(
-                    1000);
+            this.connectionManager = new PoolingHttpClientConnectionManager(registry, null, null, null, -1, TimeUnit
+                    .MILLISECONDS);
+            this.connectionManager.setMaxTotal(2000);
+            this.connectionManager.setDefaultMaxPerRoute(1000);
             return this.connectionManager;
         } catch (Exception ex) {
             throw new RuntimeException(ex);
@@ -154,8 +135,7 @@ public class HttpUtils {
     }
 
     public HttpHost getHttpHost(URL host) {
-        HttpHost httpHost = new HttpHost(host.getHost(), host.getPort(),
-                host.getProtocol());
+        HttpHost httpHost = new HttpHost(host.getHost(), host.getPort(), host.getProtocol());
         return httpHost;
     }
 

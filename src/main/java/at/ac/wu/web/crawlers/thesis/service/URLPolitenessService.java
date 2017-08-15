@@ -35,14 +35,13 @@ public class URLPolitenessService {
      */
     public List<String> isCrawlable(List<String> input) {
         List<URL> urls = input.stream().map(this::toUrl).filter(Objects::nonNull).collect(Collectors.toList());
-        List<String> visitedDomains = new ArrayList<>();
+        List<URL> visitedDomains = new ArrayList<>();
         List<String> result = new ArrayList<>(input.size());
         for (URL url : urls) {
-            URL targetURL = null;
-            if (!visitedDomains.contains(url.toString())) {
-                if (robotsTxt.allows(targetURL)) {
+            if (!visitedDomains.contains(url)) {
+                if (robotsTxt.allows(url)) {
                     if (cache.isAllowed(url.getHost())) {
-                        visitedDomains.add(url.getHost());
+                        visitedDomains.add(url);
                         result.add(url.toString());
                     }
                 }

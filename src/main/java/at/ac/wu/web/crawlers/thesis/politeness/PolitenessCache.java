@@ -82,6 +82,7 @@ public class PolitenessCache {
         }
     }
 
+    //TODO implement for request duration
     public void updateLatency(String domain, long timeMillis, int statusCode) {
         PolitenessEntry entry = this.delayCache.getEntry(domain);
         if (entry != null) {

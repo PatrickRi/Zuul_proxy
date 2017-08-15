@@ -30,7 +30,7 @@ public class PropertyExtractionHelper {
 
     /**
      * Extracts all properties from the given environment and builds a list
-     * out of the relveant properties (politeness.domains[\d].*)
+     * out of the relevant properties (politeness.domains[\d].*)
      *
      * @param env Environment
      * @return List of {@link PolitenessEntry}

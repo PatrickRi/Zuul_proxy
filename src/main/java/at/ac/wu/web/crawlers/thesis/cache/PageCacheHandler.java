@@ -40,18 +40,19 @@ public class PageCacheHandler {
     public CacheEntry getContent(HttpServletRequest request) {
         CacheEntry entry;
         try {
-            URL url = new URL(request.getRequestURL().toString());
+            String url = new URL(request.getRequestURL().toString()).toString();
             String header = request.getHeader(HttpHeaders.CONTENT_TYPE);
             if (header == null || header.isEmpty()) {
-                entry = cache.getEntry(new CacheKey(url.toString()));
+                entry = cache.getEntry(new CacheKey(url));
+                //Check if entry satisfies Cache-Control directives
                 if (entry == null || !checkCacheControl(request, entry)) {
-                    entry = cache.getEntry(new CacheKey(url.toString(), "*/*"));
+                    entry = cache.getEntry(new CacheKey(url, "*/*"));
                 }
             } else {
                 //Whitespaces can be contained inside Content-Type Header
-                entry = cache.getEntry(new CacheKey(url.toString(), header.replaceAll("\\s", "")));
+                entry = cache.getEntry(new CacheKey(url, header.replaceAll("\\s", "")));
             }
-
+            //Check if entry satisfies Cache-Control directives
             if (entry != null && checkCacheControl(request, entry)) {
                 return entry;
             }
@@ -73,19 +74,20 @@ public class PageCacheHandler {
     public void put(URL url, Header[] headers, byte[] content, HttpServletRequest request) {
         if (headers != null && content != null && content.length > 1) {
             CacheEntry cacheEntry = createCacheEntry(url, headers, content);
+            String urlString = url.toString();
 
             String contentTypeRequested = request.getHeader(HttpHeaders.CONTENT_TYPE);
             //If a specific content-type was requested
             if (contentTypeRequested != null && !contentTypeRequested.isEmpty()) {
                 //Put with Content-Type of response
-                cache.addPage(new CacheKey(url.toString(), contentTypeRequested), cacheEntry);
+                cache.addPage(new CacheKey(urlString, contentTypeRequested), cacheEntry);
                 //If there is no wildcard entry, put one into the cache
-                CacheKey wildcardKey = new CacheKey(url.toString(), "*/*");
+                CacheKey wildcardKey = new CacheKey(urlString, "*/*");
                 if (!cache.exists(wildcardKey)) {
                     cache.addPage(wildcardKey, cacheEntry);
                 }
                 //If there is no url entry, put one into the cache
-                CacheKey simpleKey = new CacheKey(url.toString());
+                CacheKey simpleKey = new CacheKey(urlString);
                 if (!cache.exists(simpleKey)) {
                     cache.addPage(simpleKey, cacheEntry);
                 }
@@ -97,9 +99,9 @@ public class PageCacheHandler {
                 //Existence check is not needed here because a request already cached does not get this far
                 //and wildcard and pure url entries are more relevant coming from requests without Content-Type
                 //because server Content-Type defaults may differ
-                cache.addPage(new CacheKey(url.toString(), cacheEntry.getContentType()), cacheEntry);
-                cache.addPage(new CacheKey(url.toString()), cacheEntry);
-                cache.addPage(new CacheKey(url.toString(), "*/*"), cacheEntry);
+                cache.addPage(new CacheKey(urlString, cacheEntry.getContentType()), cacheEntry);
+                cache.addPage(new CacheKey(urlString), cacheEntry);
+                cache.addPage(new CacheKey(urlString, "*/*"), cacheEntry);
             }
         }
     }
