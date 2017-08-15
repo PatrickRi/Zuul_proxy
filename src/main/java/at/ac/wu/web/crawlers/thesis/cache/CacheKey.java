@@ -39,12 +39,18 @@ public class CacheKey implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         CacheKey cacheKey = (CacheKey) o;
 
-        if (url != null ? !url.equals(cacheKey.url) : cacheKey.url != null) return false;
+        if (url != null ? !url.equals(cacheKey.url) : cacheKey.url != null) {
+            return false;
+        }
         return contentType != null ? contentType.equals(cacheKey.contentType) : cacheKey.contentType == null;
 
     }

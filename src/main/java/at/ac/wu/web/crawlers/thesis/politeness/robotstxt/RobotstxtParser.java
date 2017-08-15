@@ -17,7 +17,7 @@ public class RobotstxtParser {
     private static final Logger logger = LoggerFactory.getLogger(RobotstxtParser.class);
     private static final Pattern RULE_PATTERN = Pattern.compile("(?i)^([A-Za-z\\-]+):(.*)");
     private static final Set<String> VALID_RULES = new HashSet<>(
-        Arrays.asList("allow", "disallow", "user-agent", "crawl-delay", "host", "sitemap"));
+            Arrays.asList("allow", "disallow", "user-agent", "crawl-delay", "host", "sitemap"));
 
     public static HostDirectives parse(String content, RobotstxtConfiguration config) {
         HostDirectives directives = new HostDirectives(config);

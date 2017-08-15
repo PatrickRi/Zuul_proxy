@@ -81,7 +81,8 @@ public class URLPolitenessService {
                     result.add(new URLPoliteness(url.toString(), message, false, delay));
                 }
             } else {
-                result.add(new URLPoliteness(url.toString(), "Blocked because URL is excluded from allowed URLs.", false, -1));
+                result.add(new URLPoliteness(url.toString(), "Blocked because URL is excluded from allowed URLs.",
+                                             false, -1));
             }
         }
         return result;

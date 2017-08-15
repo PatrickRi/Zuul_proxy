@@ -74,7 +74,8 @@ public class ZuulProxyApplication {
 
     @Bean
     public PreDecorationFilter decorationFilter(RouteLocator routeLocator) {
-        return new PreDecorationFilter(routeLocator, this.server.getServlet().getServletPrefix(), this.zuulProperties, new ProxyRequestHelper());
+        return new PreDecorationFilter(routeLocator, this.server.getServlet().getServletPrefix(), this
+                .zuulProperties, new ProxyRequestHelper());
     }
 
     @Bean
@@ -83,7 +84,8 @@ public class ZuulProxyApplication {
     }
 
     //Eventually try this:
-    //https://stackoverflow.com/questions/16251273/can-i-watch-for-single-file-change-with-watchservice-not-the-whole-directory
+    //https://stackoverflow.com/questions/16251273/can-i-watch-for-single-file-change-with-watchservice-not-the-whole
+    // -directory
 //    @Bean(name = "configChangeandRefreshBean")
 //    public FileSystemWatcher watcher(ContextRefresher contextRefresher)  {
 //        FileSystemWatcher fileSystemWatcher = new FileSystemWatcher(true, 2000, 500);
@@ -92,7 +94,8 @@ public class ZuulProxyApplication {
 //            contextRefresher.refresh();
 //        });
 ////        new File("./src/main/resources/
-////        fileSystemWatcher.addSourceFolders(new ClassPathFolders(new DefaultRestartInitializer().getInitialUrls(Thread.currentThread())));
+////        fileSystemWatcher.addSourceFolders(new ClassPathFolders(new DefaultRestartInitializer().getInitialUrls
+// (Thread.currentThread())));
 //        fileSystemWatcher.addSourceFolder(new File("./src/main/resources/"));
 //        fileSystemWatcher.start();
 //        return fileSystemWatcher;

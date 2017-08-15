@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Represents the infinispan cache holding the information
  * which domains where crawled at which time.
- *
+ * <p>
  * Created by Patrick on 11.07.2017.
  */
 @Component
@@ -64,7 +64,8 @@ public class PolitenessCache {
             log.debug("Domain " + domain + " added to cache with lifespan of " + politenessEntry.getDelay());
             cache().put(domain + System.currentTimeMillis(), "", politenessEntry.getDelay(), TimeUnit.MILLISECONDS);
         } else {
-            log.debug("Domain " + domain + " added to cache with configured default lifespan of " + this.config.getDefaultDelay());
+            log.debug("Domain " + domain + " added to cache with configured default lifespan of " + this.config
+                    .getDefaultDelay());
             cache().put(domain + System.currentTimeMillis(), "", this.config.getDefaultDelay(), TimeUnit.MILLISECONDS);
         }
     }

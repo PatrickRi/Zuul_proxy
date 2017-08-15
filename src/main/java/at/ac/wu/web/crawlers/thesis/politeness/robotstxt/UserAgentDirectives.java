@@ -63,7 +63,7 @@ public class UserAgentDirectives {
         // Return the verdict of the best matching rule
         for (Rule rule : rules) {
             if (rule.matches(path)) {
-                logger.debug(rule.pattern + "["+ rule.type +"] matches for path " + path);
+                logger.debug(rule.pattern + "[" + rule.type + "] matches for path " + path);
                 return rule.type;
             }
         }

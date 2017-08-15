@@ -19,7 +19,7 @@ import static org.apache.http.HttpHeaders.*;
 
 /**
  * This class handles the interaction with the cache itself ({@link PageCache})
- *
+ * <p>
  * Created by Patrick on 01.08.2017.
  */
 @Service
@@ -66,7 +66,7 @@ public class PageCacheHandler {
     /**
      * Populates the cache with the given content, depending on the paramters.
      *
-     * @param url requested URL
+     * @param url     requested URL
      * @param headers Response headers
      * @param content Response body in binary form
      * @param request Request
@@ -150,7 +150,8 @@ public class PageCacheHandler {
             }
         }
         return new CacheEntry(content, url.toString(),
-                maxAge, noCache, noStore, expires, LocalDateTime.now(Clock.systemUTC()), map, false, contentType);
+                              maxAge, noCache, noStore, expires, LocalDateTime.now(Clock.systemUTC()), map, false,
+                              contentType);
     }
 
     private boolean checkCacheControl(HttpServletRequest request, CacheEntry entry) {
@@ -289,6 +290,7 @@ public class PageCacheHandler {
 
         long seconds = tempDateTime.until(toDateTime, ChronoUnit.SECONDS);
 
-        return seconds + minutes * 60 + hours * 60 * 60 + days * 60 * 60 * 24 + months * 60 * 60 * 24 * 30 + years * 60 * 60 * 24 * 30 * 12;
+        return seconds + minutes * 60 + hours * 60 * 60 + days * 60 * 60 * 24 + months * 60 * 60 * 24 * 30 + years *
+                60 * 60 * 24 * 30 * 12;
     }
 }

@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Represents the infinispan cache holding cached pages.
- *
+ * <p>
  * Created by Patrick on 11.07.2017.
  */
 @Component
@@ -97,7 +97,7 @@ public class PageCache {
      *
      * @param key Key
      * @return <tt>true</tt> if the cache contains a mapping for the specified
-     *         key
+     * key
      */
     public boolean exists(CacheKey key) {
         return cache().containsKey(key);
@@ -108,7 +108,7 @@ public class PageCache {
      *
      * @param key Key
      * @return the value to which the specified key is mapped, or
-     *         {@code null} if the cache contains no mapping for the key
+     * {@code null} if the cache contains no mapping for the key
      */
     public CacheEntry getEntry(CacheKey key) {
         byte[] bytes = cache().get(key);

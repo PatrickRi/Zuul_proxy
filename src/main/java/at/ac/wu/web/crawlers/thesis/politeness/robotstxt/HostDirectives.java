@@ -24,7 +24,7 @@ public class HostDirectives {
         config = configuration;
         userAgent = config.getUserAgentName().toLowerCase();
         rules = new TreeSet<>(
-            new UserAgentDirectives.UserAgentComparator(userAgent));
+                new UserAgentDirectives.UserAgentComparator(userAgent));
     }
 
     /**

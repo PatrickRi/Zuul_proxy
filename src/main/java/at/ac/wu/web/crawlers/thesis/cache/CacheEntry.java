@@ -18,7 +18,8 @@ public class CacheEntry implements Serializable {
     private HashMap<String, String> headers;
     private String contentType;
 
-    public CacheEntry(byte[] data, String url, long maxAge, boolean noCache, boolean noStore, LocalDateTime expires, LocalDateTime time, HashMap<String, String> headers, boolean gZipped, String contentType) {
+    public CacheEntry(byte[] data, String url, long maxAge, boolean noCache, boolean noStore, LocalDateTime expires,
+                      LocalDateTime time, HashMap<String, String> headers, boolean gZipped, String contentType) {
         this.data = data;
         this.url = url;
         this.maxAge = maxAge;

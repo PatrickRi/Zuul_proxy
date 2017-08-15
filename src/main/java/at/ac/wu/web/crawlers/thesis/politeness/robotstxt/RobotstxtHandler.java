@@ -79,11 +79,13 @@ public class RobotstxtHandler {
             URL robotsUrl = new URL(proto + "://" + host + port + "/robots.txt");
 
             HttpHost httpHost = httpUtils.getHttpHost(robotsUrl);
-            HttpRequest httpRequest = httpUtils.buildHttpRequest("GET", robotsUrl.toString(), null, new HttpHeaders(), new HttpHeaders(), null);
+            HttpRequest httpRequest = httpUtils.buildHttpRequest("GET", robotsUrl.toString(), null, new HttpHeaders()
+                    , new HttpHeaders(), null);
             CloseableHttpResponse httpResponse = httpUtils.getHttpClient().execute(httpHost, httpRequest);
 
             if (httpResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-                String contentType = httpResponse.getFirstHeader("content-type") != null ? httpResponse.getFirstHeader("content-type").getValue() : "";
+                String contentType = httpResponse.getFirstHeader("content-type") != null ? httpResponse
+                        .getFirstHeader("content-type").getValue() : "";
                 ByteSource source = new ByteSource() {
                     @Override
                     public InputStream openStream() throws IOException {
@@ -95,7 +97,8 @@ public class RobotstxtHandler {
                     if (httpResponse.getFirstHeader("content-charset") == null) {
                         content = source.asCharSource(Charset.forName("UTF-8")).read();
                     } else {
-                        content = source.asCharSource(Charset.forName(httpResponse.getFirstHeader("content-charset").getValue())).read();
+                        content = source.asCharSource(Charset.forName(httpResponse.getFirstHeader("content-charset")
+                                                                              .getValue())).read();
                     }
                     directives = RobotstxtParser.parse(content, config);
                 } else if (contentType.contains("html")) {
@@ -116,7 +119,7 @@ public class RobotstxtHandler {
                 }
             } else {
                 logger.debug("Can't read this robots.txt: {}  as it's status code is {}",
-                        url, httpResponse.getStatusLine().getStatusCode());
+                             url, httpResponse.getStatusLine().getStatusCode());
             }
         } catch (Exception ex) {
             logger.error("Error occurred while fetching (robots) url: " + url, ex);

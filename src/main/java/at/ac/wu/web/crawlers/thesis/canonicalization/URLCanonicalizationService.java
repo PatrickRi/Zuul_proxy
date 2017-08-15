@@ -46,7 +46,8 @@ public class URLCanonicalizationService {
              * when found in a URI, should be decoded to their corresponding
              * unreserved characters by URI normalizers.
              */
-            if ((0x41 <= c && c <= 0x5A) || (0x61 <= c && c <= 0x7A) || (0x30 <= c && c <= 0x39) || c == 0x2D || c == 0x2E || c == 0x5F || c == 0x7E) {
+            if ((0x41 <= c && c <= 0x5A) || (0x61 <= c && c <= 0x7A) || (0x30 <= c && c <= 0x39) || c == 0x2D || c ==
+                    0x2E || c == 0x5F || c == 0x7E) {
                 unescapedCharacters[c] = true;
             } else {
                 unescapedCharacters[c] = false;
@@ -133,13 +134,14 @@ public class URLCanonicalizationService {
             file = file2;
         }
 
-        if (changed)
+        if (changed) {
             try {
                 urlString = new URL(protocol, host, port, file).toString();
             } catch (MalformedURLException e) {
                 LOG.info("Malformed URL {}{}{}{}", protocol, host, port, file);
                 return null;
             }
+        }
 
         return urlString;
     }
