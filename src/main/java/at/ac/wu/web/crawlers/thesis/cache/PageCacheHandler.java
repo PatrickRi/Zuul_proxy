@@ -1,5 +1,6 @@
 package at.ac.wu.web.crawlers.thesis.cache;
 
+import at.ac.wu.web.crawlers.thesis.canonicalization.URLCanonicalizationService;
 import org.apache.http.Header;
 import org.apache.http.HttpHeaders;
 import org.slf4j.Logger;
@@ -30,6 +31,9 @@ public class PageCacheHandler {
     @Autowired
     PageCache cache;
 
+    @Autowired
+    URLCanonicalizationService canonicalizationService;
+
     /**
      * Tries to retrieve a cached entry using various parameters of the given request.
      *
@@ -41,6 +45,7 @@ public class PageCacheHandler {
         CacheEntry entry;
         try {
             String url = new URL(request.getRequestURL().toString()).toString();
+            url = canonicalizationService.normalize(url);
             String header = request.getHeader(HttpHeaders.CONTENT_TYPE);
             if (header == null || header.isEmpty()) {
                 entry = cache.getEntry(new CacheKey(url));
@@ -73,8 +78,8 @@ public class PageCacheHandler {
      */
     public void put(URL url, Header[] headers, byte[] content, HttpServletRequest request) {
         if (headers != null && content != null && content.length > 1) {
+            String urlString = canonicalizationService.normalize(url.toString());
             CacheEntry cacheEntry = createCacheEntry(url, headers, content);
-            String urlString = url.toString();
 
             String contentTypeRequested = request.getHeader(HttpHeaders.CONTENT_TYPE);
             //If a specific content-type was requested

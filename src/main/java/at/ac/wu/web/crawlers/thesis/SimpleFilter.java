@@ -3,6 +3,8 @@ package at.ac.wu.web.crawlers.thesis;
 import at.ac.wu.web.crawlers.thesis.cache.CacheEntry;
 import at.ac.wu.web.crawlers.thesis.cache.PageCacheHandler;
 import at.ac.wu.web.crawlers.thesis.http.HttpUtils;
+import at.ac.wu.web.crawlers.thesis.order.OrderHelper;
+import at.ac.wu.web.crawlers.thesis.order.OrderKey;
 import at.ac.wu.web.crawlers.thesis.politeness.PolitenessCache;
 import at.ac.wu.web.crawlers.thesis.politeness.robotstxt.RobotstxtHandler;
 import com.netflix.zuul.ZuulFilter;
@@ -116,6 +118,8 @@ public class SimpleFilter extends ZuulFilter {
     public Object run() {
         RequestContext context = RequestContext.getCurrentContext();
         HttpServletRequest request = context.getRequest();
+        OrderKey orderKey = new OrderKey(request.getRemoteHost(), Thread.currentThread().getName());
+        OrderHelper.add(orderKey);
         URL targetURL = null;
         try {
             targetURL = new URL(request.getRequestURL().toString());
@@ -126,6 +130,7 @@ public class SimpleFilter extends ZuulFilter {
             String requestAddress = InetAddress.getByName(targetURL.getHost()).getHostAddress();
             if (localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress
                     .equalsIgnoreCase("localhost")) {
+                new OrderHelper().remove(orderKey);
                 return null;
             }
             //Check cache for already cached result
@@ -145,7 +150,7 @@ public class SimpleFilter extends ZuulFilter {
                     }
                 }
                 InputStream responseContent = new ByteArrayInputStream(cachedContent.getData());
-
+                new OrderHelper().remove(orderKey);
                 this.helper.setResponse(200, responseContent, map);
                 return null;
             }
@@ -153,39 +158,28 @@ public class SimpleFilter extends ZuulFilter {
             if (!robotsTxt.allows(targetURL)) {
                 counterService.increment("counter.requests.denied.robotstxt");
                 log.debug(request.getRequestURL().toString() + " blocked because of robots.txt");
-                String html = html(
-                        head(
-                                title("Request Blocked")
-                            ),
-                        body(h1("Request Blocked"), p("Blocked because URL is excluded from allowed URLS.")
-                            )
-                                  ).render();
-                InputStream content = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
+                InputStream content = new ByteArrayInputStream(getBlockedHTML().getBytes(StandardCharsets.UTF_8));
+                new OrderHelper().remove(orderKey);
                 this.helper.setResponse(403, content, new HttpHeaders());
                 return null;
             }
             //Check politeness constraints (delays)
-            if (!politenessCache.isAllowed(targetURL.getHost())) {
+            if (!politenessCache.isAllowed(targetURL.getHost().toLowerCase())) {
                 counterService.increment("counter.requests.denied.politeness");
                 int delayForDomain = politenessCache.getDelayForDomain(targetURL.getHost());
                 log.debug(request.getRequestURL().toString() + " blocked because of configured delay of " +
                                   delayForDomain);
                 //https://tools.ietf.org/html/rfc6585 - include retry header and html error
-                String html = html(
-                        head(
-                                title("Too Many Requests")
-                            ),
-                        body(h1("Too Many Requests"), p("There must be a delay of " + delayForDomain + " milliseconds" +
-                                                                " between each request.")
-                            )
-                                  ).render();
-                InputStream content = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
+                InputStream content = new ByteArrayInputStream(getTooManyRequestsHTML(delayForDomain).getBytes
+                        (StandardCharsets.UTF_8));
                 HttpHeaders headers = new HttpHeaders();
-                headers.set("Retry-After", "" + delayForDomain);
+                headers.set(HttpHeaders.RETRY_AFTER, "" + delayForDomain);
+                new OrderHelper().remove(orderKey);
                 this.helper.setResponse(429, content, headers);
                 return null;
             }
         } catch (Exception ex) {
+            new OrderHelper().remove(orderKey);
             throw new ZuulRuntimeException(ex);
         }
         MultiValueMap<String, String> headers = this.helper
@@ -200,12 +194,13 @@ public class SimpleFilter extends ZuulFilter {
 
         this.helper.addIgnoredHeaders();
         try {
-            this.politenessCache.add(new URL(request.getRequestURL().toString()).getHost());
+            this.politenessCache.add(new URL(request.getRequestURL().toString()).getHost().toLowerCase());
             CloseableHttpResponse response = forward(httpUtils.getHttpClient(), verb, request.getRequestURL()
                                                              .toString(), request,
                                                      headers, params, requestEntity);
             setResponse(response, targetURL, request);
         } catch (Exception ex) {
+            new OrderHelper().remove(orderKey);
             throw new ZuulRuntimeException(ex);
         }
         return null;
@@ -297,9 +292,30 @@ public class SimpleFilter extends ZuulFilter {
         InputStream responseContent = new ByteArrayInputStream(bytes);
         this.pageCacheHandler.put(url, response.getAllHeaders(), bytes, request);
 
-
+        new OrderHelper().remove(new OrderKey(request.getRemoteHost(), Thread.currentThread().getName()));
         this.helper.setResponse(response.getStatusLine().getStatusCode(),
                                 response.getEntity() == null ? null : responseContent,
                                 multiValueMap);
+    }
+
+    private String getTooManyRequestsHTML(int delayForDomain) {
+        return html(
+                head(
+                        title("Too Many Requests")
+                    ),
+                body(h1("Too Many Requests"), p("There must be a delay of " + delayForDomain + " milliseconds" +
+                                                        " between each request.")
+                    )
+                   ).render();
+    }
+
+    private String getBlockedHTML() {
+        return html(
+                head(
+                        title("Request Blocked")
+                    ),
+                body(h1("Request Blocked"), p("Blocked because URL is excluded from allowed URLS.")
+                    )
+                   ).render();
     }
 }

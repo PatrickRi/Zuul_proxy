@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * Represents the infinispan cache holding cached pages.
  * <p>
@@ -52,6 +54,8 @@ public class PageCache {
                     .memory()
                     .size(cacheProperties.getMemory())
                     .evictionType(EvictionType.MEMORY)
+                    .expiration()
+                    .lifespan(1, TimeUnit.DAYS)
                     .storeAsBinary()
                     .enable()
                     .jmxStatistics()

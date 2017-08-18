@@ -40,7 +40,7 @@ public class URLPolitenessService {
         for (URL url : urls) {
             if (!visitedDomains.contains(url)) {
                 if (robotsTxt.allows(url)) {
-                    if (cache.isAllowed(url.getHost())) {
+                    if (cache.isAllowed(url.getHost().toLowerCase())) {
                         visitedDomains.add(url);
                         result.add(url.toString());
                     }
@@ -63,7 +63,7 @@ public class URLPolitenessService {
         Map<String, Integer> visitedDomains = new HashMap<>();
         List<URLPoliteness> result = new ArrayList<>(input.size());
         for (URL url : urls) {
-            final String host = url.getHost();
+            final String host = url.getHost().toLowerCase();
             int delay = cache.getDelayForDomain(host);
             if (robotsTxt.allows(url)) {
                 if (cache.isAllowed(host)) {
