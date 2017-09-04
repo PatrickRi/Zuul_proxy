@@ -13,11 +13,12 @@ public class OrderHelperTest {
 
     @Test
     public void test() throws Exception {
+        new OrderHelper(2000L);
         OrderStubClient fast = new OrderStubClient("fast", 1000);
         OrderStubClient slow = new OrderStubClient("slow", 5000);
-        new Thread(slow).start();
+        new Thread(slow, "slow").start();
         Thread.sleep(200);
-        new Thread(fast).start();
+        new Thread(fast, "fast").start();
         Thread.sleep(10000);
     }
 
@@ -42,7 +43,7 @@ public class OrderHelperTest {
                 e.printStackTrace();
             }
             System.out.println(this.name + " - REMOVE " + new Date());
-            new OrderHelper().remove(key);
+            new OrderHelper(2000L).remove(key);
             System.out.println(this.name + " - DONE " + new Date());
         }
     }

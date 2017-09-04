@@ -44,6 +44,8 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
 
+crawler.politeness.timeout: 10000
+
 politeness:
   domains:
     - domain: derstandard.at

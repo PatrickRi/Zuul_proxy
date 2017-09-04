@@ -72,6 +72,9 @@ public class SimpleFilter extends ZuulFilter {
     @Autowired
     CounterService counterService;
 
+    @Autowired
+    OrderHelper orderHelper;
+
     public SimpleFilter(TraceProxyRequestHelper helper) {
         this.helper = helper;
     }
@@ -118,8 +121,9 @@ public class SimpleFilter extends ZuulFilter {
     public Object run() {
         RequestContext context = RequestContext.getCurrentContext();
         HttpServletRequest request = context.getRequest();
-        OrderKey orderKey = new OrderKey(request.getRemoteHost(), Thread.currentThread().getName());
-        OrderHelper.add(orderKey);
+        OrderKey orderKey = null;
+        orderKey = new OrderKey(request.getRemoteHost(), Thread.currentThread().getName());
+        orderHelper.add(orderKey);
         URL targetURL = null;
         try {
             targetURL = new URL(request.getRequestURL().toString());
@@ -130,7 +134,7 @@ public class SimpleFilter extends ZuulFilter {
             String requestAddress = InetAddress.getByName(targetURL.getHost()).getHostAddress();
             if (localAddress.equals(requestAddress) || requestAddress.equals("127.0.0.1") || requestAddress
                     .equalsIgnoreCase("localhost")) {
-                new OrderHelper().remove(orderKey);
+                orderHelper.remove(orderKey);
                 return null;
             }
             //Check cache for already cached result
@@ -150,7 +154,7 @@ public class SimpleFilter extends ZuulFilter {
                     }
                 }
                 InputStream responseContent = new ByteArrayInputStream(cachedContent.getData());
-                new OrderHelper().remove(orderKey);
+                orderHelper.remove(orderKey);
                 this.helper.setResponse(200, responseContent, map);
                 return null;
             }
@@ -159,7 +163,7 @@ public class SimpleFilter extends ZuulFilter {
                 counterService.increment("counter.requests.denied.robotstxt");
                 log.debug(request.getRequestURL().toString() + " blocked because of robots.txt");
                 InputStream content = new ByteArrayInputStream(getBlockedHTML().getBytes(StandardCharsets.UTF_8));
-                new OrderHelper().remove(orderKey);
+                orderHelper.remove(orderKey);
                 this.helper.setResponse(403, content, new HttpHeaders());
                 return null;
             }
@@ -174,12 +178,12 @@ public class SimpleFilter extends ZuulFilter {
                         (StandardCharsets.UTF_8));
                 HttpHeaders headers = new HttpHeaders();
                 headers.set(HttpHeaders.RETRY_AFTER, "" + delayForDomain);
-                new OrderHelper().remove(orderKey);
+                orderHelper.remove(orderKey);
                 this.helper.setResponse(429, content, headers);
                 return null;
             }
         } catch (Exception ex) {
-            new OrderHelper().remove(orderKey);
+            orderHelper.remove(orderKey);
             throw new ZuulRuntimeException(ex);
         }
         MultiValueMap<String, String> headers = this.helper
@@ -200,7 +204,7 @@ public class SimpleFilter extends ZuulFilter {
                                                      headers, params, requestEntity);
             setResponse(response, targetURL, request);
         } catch (Exception ex) {
-            new OrderHelper().remove(orderKey);
+            orderHelper.remove(orderKey);
             throw new ZuulRuntimeException(ex);
         }
         return null;
@@ -292,7 +296,7 @@ public class SimpleFilter extends ZuulFilter {
         InputStream responseContent = new ByteArrayInputStream(bytes);
         this.pageCacheHandler.put(url, response.getAllHeaders(), bytes, request);
 
-        new OrderHelper().remove(new OrderKey(request.getRemoteHost(), Thread.currentThread().getName()));
+        orderHelper.remove(new OrderKey(request.getRemoteHost(), Thread.currentThread().getName()));
         this.helper.setResponse(response.getStatusLine().getStatusCode(),
                                 response.getEntity() == null ? null : responseContent,
                                 multiValueMap);
