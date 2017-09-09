@@ -68,17 +68,17 @@ public class URLPolitenessService {
             if (robotsTxt.allows(url)) {
                 if (cache.isAllowed(host)) {
                     if (visitedDomains.containsKey(host)) {
-                        addToMap(visitedDomains, host, delay);
                         String message = "There must be a delay of " + delay + " milliseconds between each request.";
                         result.add(new URLPoliteness(url.toString(), message, false, visitedDomains.get(host)));
+                        addToMap(visitedDomains, host, delay);
                     } else {
                         addToMap(visitedDomains, host, delay);
                         result.add(new URLPoliteness(url.toString(), null, true, -1));
                     }
                 } else {
-                    addToMap(visitedDomains, host, delay);
                     String message = "There must be a delay of " + delay + " milliseconds between each request.";
                     result.add(new URLPoliteness(url.toString(), message, false, delay));
+                    addToMap(visitedDomains, host, delay);
                 }
             } else {
                 result.add(new URLPoliteness(url.toString(), "Blocked because URL is excluded from allowed URLs.",

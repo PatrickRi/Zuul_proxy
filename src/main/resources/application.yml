@@ -1,5 +1,5 @@
 zuul:
-  ignoredPatterns: /trace/**, /trace, /politeness, /politeness/**
+  ignoredPatterns: /trace/**,/trace,/politeness,/politeness/**
   routes:
     web: /*
     web_all: /**
@@ -44,12 +44,12 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
 
-crawler.politeness.timeout: 10000
+crawler.politeness.timeout: 0
 
 politeness:
   domains:
     - domain: derstandard.at
-      delay: 1000
+      delay: 100
     - domain: sport.orf.at
       delay: 5000
   use-default: false
