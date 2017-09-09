@@ -12,11 +12,13 @@ The importance of web crawlers grows with the ongoing expansion of the World Wid
 
 * Install with maven
 
+  Maven can be downloaded here: https://maven.apache.org/download.cgi
+
   ```bash
   mvn clean package
   ```
 
-* Run the resulting JAR-archive
+* Run the JAR-archive
 
   ```bash
   java -jar ./target/zuul_proxy-0.0.1-SNAPSHOT.jar
